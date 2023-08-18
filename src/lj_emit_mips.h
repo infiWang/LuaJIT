@@ -31,6 +31,11 @@ static intptr_t get_k64val(ASMState *as, IRRef ref)
 
 /* -- Emit basic instructions --------------------------------------------- */
 
+static void emit_nop(ASMState *as)
+{
+  *--as->mcp = MIPSI_NOP;
+}
+
 static void emit_dst(ASMState *as, MIPSIns mi, Reg rd, Reg rs, Reg rt)
 {
   *--as->mcp = mi | MIPSF_D(rd) | MIPSF_S(rs) | MIPSF_T(rt);

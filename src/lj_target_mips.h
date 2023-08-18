@@ -173,7 +173,11 @@ typedef struct {
 /* Return the address of a per-trace exit stub. */
 static LJ_AINLINE uint32_t *exitstub_trace_addr_(uint32_t *p)
 {
+#ifdef LJ_TARGET_MIPS3
+  while (*p == 0x00200825) p++;  /* Skip MIPSI_NOP. */
+#else
   while (*p == 0x00000000) p++;  /* Skip MIPSI_NOP. */
+#endif
   return p;
 }
 /* Avoid dependence on lj_jit.h if only including lj_target.h. */
@@ -200,7 +204,15 @@ typedef enum MIPSIns {
   MIPSI_D32 = 0x3c,
   /* Integer instructions. */
   MIPSI_MOVE = 0x00000025,
+#ifdef LJ_TARGET_MIPS3
+  /* Loongson2F madness. */
+  /* sll $zero, $zero, 0 -> or $at, $at, zero */
+  /* Don't ask me why MIPS3: where on earth is the other MIPS3 processors, if any...? */
+  // MIPSI_NOP = 0x00000025 | MIPSF_D(RID_R1) | MIPSF_S(RID_R1) | MIPSF_T(RID_ZERO),
+  MIPSI_NOP = 0x00200825,
+#else
   MIPSI_NOP = 0x00000000,
+#endif
 
   MIPSI_LI = 0x24000000,
   MIPSI_LU = 0x34000000,
@@ -213,6 +225,7 @@ typedef enum MIPSIns {
   MIPSI_XOR = 0x00000026,
   MIPSI_XORI = 0x38000000,
   MIPSI_NOR = 0x00000027,
+  MIPSI_NOT = 0x00000027,
 
   MIPSI_SLT = 0x0000002a,
   MIPSI_SLTU = 0x0000002b,

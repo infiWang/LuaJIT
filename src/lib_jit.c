@@ -707,7 +707,7 @@ static uint32_t jit_cpudetect(void)
   flags |= JIT_F_MIPSXXR2;
 #endif
   /* Runtime MIPS CPU detection. */
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !LJ_TARGET_MIPS3
   if (!(flags & JIT_F_MIPSXXR2)) {
     int x;
 #ifdef __mips16

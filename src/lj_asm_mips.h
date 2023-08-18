@@ -67,8 +67,14 @@ static void asm_sparejump_setup(ASMState *as)
   MCode *mxp = as->mctop;
   if ((char *)mxp == (char *)as->J->mcarea + as->J->szmcarea) {
     mxp -= MIPS_SPAREJUMP*2;
+#ifdef LJ_TARGET_MIPS3
+    lj_assertA(MIPSI_NOP == 0x00200825, "bad NOP");
+    for (int i = MIPS_SPAREJUMP*2; i--; )
+      *--mxp = MIPSI_NOP;
+#else
     lj_assertA(MIPSI_NOP == 0, "bad NOP");
     memset(mxp, 0, MIPS_SPAREJUMP*2*sizeof(MCode));
+#endif
     as->mctop = mxp;
   }
 }
@@ -489,6 +495,9 @@ static void asm_tointg(ASMState *as, IRIns *ir, Reg left)
   Reg dest = ra_dest(as, ir, RSET_GPR);
 #if !LJ_TARGET_MIPSR6
   asm_guard(as, MIPSI_BC1F, 0, 0);
+#if LJ_TARGET_MIPS3
+  emit_nop(as);
+#endif
   emit_fgh(as, MIPSI_C_EQ_D, 0, tmp, left);
 #else
   asm_guard(as, MIPSI_BC1EQZ, 0, (tmp&31));
@@ -598,7 +607,12 @@ static void asm_conv(ASMState *as, IRIns *ir)
       }
       emit_branch(as, MIPSI_BGEZ, left, RID_ZERO, l_end);
       emit_tg(as, MIPSI_DMTC1, RID_TMP, dest);
+#if LJ_TARGET_MIPS3
+      emit_dta(as, MIPSI_DSRL, RID_TMP, RID_TMP, 1);
+      emit_dta(as, MIPSI_DSLL, RID_TMP, RID_TMP, 1);
+#else
       emit_tsml(as, MIPSI_DEXTM, RID_TMP, left, 30, 0);
+#endif
 #endif
     } else {  /* Integer to FP conversion. */
       Reg left = ra_alloc1(as, lref, RSET_GPR);
@@ -654,6 +668,9 @@ static void asm_conv(ASMState *as, IRIns *ir)
 	  emit_fg(as, MIPSI_TRUNC_L_D, tmp, left);  /* Delay slot. */
 #if !LJ_TARGET_MIPSR6
 	 emit_branch(as, MIPSI_BC1T, 0, 0, l_end);
+#if LJ_TARGET_MIPS3
+	 emit_nop(as);
+#endif
 	 emit_fgh(as, MIPSI_C_OLT_D, 0, left, tmp);
 #else
 	 emit_branch(as, MIPSI_BC1NEZ, 0, (left&31), l_end);
@@ -671,6 +688,9 @@ static void asm_conv(ASMState *as, IRIns *ir)
 	  emit_fg(as, MIPSI_TRUNC_L_S, tmp, left);  /* Delay slot. */
 #if !LJ_TARGET_MIPSR6
 	 emit_branch(as, MIPSI_BC1T, 0, 0, l_end);
+#if LJ_TARGET_MIPS3
+	 emit_nop(as);
+#endif
 	 emit_fgh(as, MIPSI_C_OLT_S, 0, left, tmp);
 #else
 	 emit_branch(as, MIPSI_BC1NEZ, 0, (left&31), l_end);
@@ -765,7 +785,12 @@ static void asm_conv(ASMState *as, IRIns *ir)
 	  if ((ir->op2 & IRCONV_SEXT)) {  /* 32 to 64 bit sign extension. */
 	    emit_dta(as, MIPSI_SLL, dest, left, 0);
 	  } else {  /* 32 to 64 bit zero extension. */
+#if LJ_TARGET_MIPS3
+      emit_dta(as, MIPSI_DSRL32, dest, left, 0);
+      emit_dta(as, MIPSI_DSLL32, dest, left, 0);
+#else
 	    emit_tsml(as, MIPSI_DEXT, dest, left, 31, 0);
+#endif
 	  }
 	}
       } else {
@@ -774,7 +799,12 @@ static void asm_conv(ASMState *as, IRIns *ir)
 	  ** or a load of the loword from a 64 bit address.
 	  */
 	  Reg left = ra_alloc1(as, lref, RSET_GPR);
+#if LJ_TARGET_MIPS3
+    emit_dta(as, MIPSI_DSRL32, dest, left, 0);
+    emit_dta(as, MIPSI_DSLL32, dest, left, 0);
+#else
 	  emit_tsml(as, MIPSI_DEXT, dest, left, 31, 0);
+#endif
 	} else {  /* 32/32 bit no-op (cast). */
 	  /* Do nothing, but may need to move regs. */
 	  ra_leftov(as, dest, lref);
@@ -848,7 +878,12 @@ static void asm_tvstore64(ASMState *as, Reg base, int32_t ofs, IRRef ref)
     emit_tsi(as, MIPSI_SD, RID_TMP, base, ofs);
     if (irt_isinteger(ir->t)) {
       emit_dst(as, MIPSI_DADDU, RID_TMP, RID_TMP, type);
-      emit_tsml(as, MIPSI_DEXT, RID_TMP, src, 31, 0);
+#if LJ_TARGET_MIPS3
+      emit_dta(as, MIPSI_DSRL32, RID_TMP, RID_TMP, 0);
+      emit_dta(as, MIPSI_DSLL32, RID_TMP, src, 0);
+#else
+	    emit_tsml(as, MIPSI_DEXT, RID_TMP, src, 31, 0);
+#endif
     } else {
       emit_dst(as, MIPSI_DADDU, RID_TMP, src, type);
     }
@@ -1037,6 +1072,9 @@ static void asm_href(ASMState *as, IRIns *ir, IROp merge)
   if (!LJ_SOFTFP && irt_isnum(kt)) {
 #if !LJ_TARGET_MIPSR6
     emit_branch(as, MIPSI_BC1T, 0, 0, l_end);
+#if LJ_TARGET_MIPS3
+	 emit_nop(as);
+#endif
     emit_fgh(as, MIPSI_C_EQ_D, 0, tmpnum, key);
 #else
     emit_branch(as, MIPSI_BC1NEZ, 0, (tmpnum&31), l_end);
@@ -1397,9 +1435,14 @@ static void asm_ahuvload(ASMState *as, IRIns *ir)
     dest = ra_dest(as, ir, (!LJ_SOFTFP && irt_isnum(t)) ? RSET_FPR : allow);
     rset_clear(allow, dest);
 #if LJ_64
-    if (irt_isaddr(t))
+    if (irt_isaddr(t)) {
+#if LJ_TARGET_MIPS3
+      emit_dta(as, MIPSI_DSLL, dest, dest, 17);
+      emit_dta(as, MIPSI_DSRL, dest, dest, 17);
+#else
       emit_tsml(as, MIPSI_DEXTM, dest, dest, 14, 0);
-    else if (irt_isint(t))
+#endif
+    } else if (irt_isint(t))
       emit_dta(as, MIPSI_SLL, dest, dest, 0);
 #endif
   }
@@ -1477,7 +1520,12 @@ static void asm_ahustore(ASMState *as, IRIns *ir)
     if (ra_hasreg(src)) {
       if (irt_isinteger(ir->t)) {
 	emit_dst(as, MIPSI_DADDU, tmp, tmp, type);
+#if LJ_TARGET_MIPS3
+  emit_dta(as, MIPSI_DSLL32, tmp, tmp, 0);
+  emit_dta(as, MIPSI_DSRL32, tmp, tmp, 0);
+#else
 	emit_tsml(as, MIPSI_DEXT, tmp, src, 31, 0);
+#endif
       } else {
 	emit_dst(as, MIPSI_DADDU, tmp, src, type);
       }
@@ -1558,7 +1606,12 @@ static void asm_sload(ASMState *as, IRIns *ir)
 #if LJ_64
     else if (irt_isaddr(t)) {
       /* Clear type from pointers. */
+#if LJ_TARGET_MIPS3
+      emit_dta(as, MIPSI_DSLL, dest, dest, 17);
+      emit_dta(as, MIPSI_DSRL, dest, dest, 17);
+#else
       emit_tsml(as, MIPSI_DEXTM, dest, dest, 14, 0);
+#endif
     } else if (irt_isint(t) && (ir->op2 & IRSLOAD_TYPECHECK)) {
       /* Sign-extend integers. */
       emit_dta(as, MIPSI_SLL, dest, dest, 0);
@@ -1883,7 +1936,12 @@ static void asm_abs(ASMState *as, IRIns *ir)
 {
   Reg dest = ra_dest(as, ir, RSET_GPR);
   Reg left = ra_alloc1(as, ir->op1, RSET_GPR);
+#if LJ_TARGET_MIPS3
+  emit_dta(as, MIPSI_DSLL, dest, left, 1);
+  emit_dst(as, MIPSI_DSRL, dest, dest, 1);
+#else
   emit_tsml(as, MIPSI_DEXTM, dest, left, 30, 0);
+#endif
 }
 #endif
 
@@ -2165,6 +2223,19 @@ static void asm_min_max(ASMState *as, IRIns *ir, int ismax)
     Reg dest = ra_dest(as, ir, RSET_FPR);
     Reg right, left = ra_alloc2(as, ir, RSET_FPR);
     right = (left >> 8); left &= 255;
+#if LJ_TARGET_MIPS3
+    if (dest == left) {
+      emit_fg(as, MIPSI_MOV_D, dest, left);
+      emit_fg(as, MIPSI_MOV_D, dest, right);
+      emit_branch(as, MIPSI_BC1T, 0, 0, as->mcp + 2);
+    } else {
+      emit_fg(as, MIPSI_MOV_D, dest, right);
+      emit_fg(as, MIPSI_MOV_D, dest, left);
+      emit_branch(as, MIPSI_BC1F, 0, 0, as->mcp + 2);
+    }
+    emit_nop(as);
+    emit_fgh(as, MIPSI_C_OLT_D, 0, ismax ? right : left, ismax ? left : right);
+#else
 #if !LJ_TARGET_MIPSR6
     if (dest == left) {
       emit_fg(as, MIPSI_MOVF_D, dest, right);
@@ -2177,10 +2248,24 @@ static void asm_min_max(ASMState *as, IRIns *ir, int ismax)
     emit_fgh(as, ismax ? MIPSI_MAX_D : MIPSI_MIN_D, dest, left, right);
 #endif
 #endif
+#endif
   } else {
     Reg dest = ra_dest(as, ir, RSET_GPR);
     Reg right, left = ra_alloc2(as, ir, RSET_GPR);
     right = (left >> 8); left &= 255;
+#if LJ_TARGET_MIPS3
+    emit_dst(as, MIPSI_OR, dest, dest, RID_TMP);
+    if (dest != right) {
+      emit_dst(as, MIPSI_AND, RID_TMP, right, RID_TMP);
+      emit_ds(as, MIPSI_NOT, RID_TMP, RID_ZERO);
+      emit_dst(as, MIPSI_AND, dest, left, RID_TMP);
+    } else {
+      emit_dst(as, MIPSI_AND, RID_TMP, left, RID_TMP);
+      emit_ds(as, MIPSI_NOT, RID_TMP, RID_ZERO);
+      emit_dst(as, MIPSI_AND, dest, right, RID_TMP);
+    }
+    emit_tsi(as, MIPSI_DADDIU, RID_TMP, RID_TMP, -1);
+#else
     if (left == right) {
       if (dest != left) emit_move(as, dest, left);
     } else {
@@ -2200,6 +2285,7 @@ static void asm_min_max(ASMState *as, IRIns *ir, int ismax)
 	emit_dst(as, MIPSI_SELEQZ, RID_TMP, left, RID_TMP);
 	emit_dst(as, MIPSI_SELNEZ, dest, right, RID_TMP);
       }
+#endif
 #endif
       emit_dst(as, MIPSI_SLT, RID_TMP,
 	       ismax ? left : right, ismax ? right : left);
@@ -2291,6 +2377,9 @@ static void asm_comp(ASMState *as, IRIns *ir)
     Reg right, left = ra_alloc2(as, ir, RSET_FPR);
     right = (left >> 8); left &= 255;
     asm_guard(as, (op&1) ? MIPSI_BC1T : MIPSI_BC1F, 0, 0);
+#if LJ_TARGET_MIPS3
+    emit_nop(as);
+#endif
     emit_fgh(as, MIPSI_C_OLT_D + ((op&3) ^ ((op>>2)&1)), 0, left, right);
 #else
     Reg tmp, right, left = ra_alloc2(as, ir, RSET_FPR);
@@ -2336,6 +2425,9 @@ static void asm_equal(ASMState *as, IRIns *ir)
     asm_sfpcomp(as, ir);
 #elif !LJ_TARGET_MIPSR6
     asm_guard(as, (ir->o & 1) ? MIPSI_BC1T : MIPSI_BC1F, 0, 0);
+#if LJ_TARGET_MIPS3
+    emit_nop(as);
+#endif
     emit_fgh(as, MIPSI_C_EQ_D, 0, left, right);
 #else
     Reg tmp = ra_scratch(as, rset_exclude(rset_exclude(RSET_FPR, left), right));

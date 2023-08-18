@@ -266,6 +266,8 @@ local map_op = {
   swc1_2 =	"e4000000HO",
   sdc1_2 =	"f4000000HO",
   sd_2 =	mips64 and "fc000000TO",
+  --- Pseudo
+  seqz_2 = "2c000001TS",
 
   -- Opcode SPECIAL.
   nop_0 =	"00000000",
@@ -326,6 +328,8 @@ local map_op = {
   dsrl32_3 =	mips64 and "0000003eDTA",
   drotr32_3 =	mips64 and "0020003eDTA",
   dsra32_3 =	mips64 and "0000003fDTA",
+  --- Pseudo
+  snez_2 = "0000002bDT",
 
   -- Opcode REGIMM.
   bltz_2 =	"04000000SB",

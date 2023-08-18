@@ -451,6 +451,9 @@ ifeq (arm,$(TARGET_LJARCH))
     DASM_AFLAGS+= -D IOS
   endif
 else
+ifneq (,$(findstring LJ_TARGET_MIPS3 ,$(TARGET_TESTARCH)))
+  DASM_AFLAGS+= -D MIPS3
+endif
 ifneq (,$(findstring LJ_TARGET_MIPSR6 ,$(TARGET_TESTARCH)))
   DASM_AFLAGS+= -D MIPSR6
 endif
