@@ -567,25 +567,21 @@ static void build_subroutines(BuildCtx *ctx)
   |7:  // Less results wanted.
   |  subu TMP0, RD, TMP2
   |  dsubu TMP0, BASE, TMP0		// Either keep top or shrink it.
-  |.if MIPSR6
+  |.if MIPS3
+  |  snez AT, TMP2			// LUA_MULTRET+1 case?
+  |  negu AT, AT
+  |  and BASE, BASE, AT
+  |  not AT, AT
+  |  and TMP0, TMP0, AT
+  |.elif MIPSR6
   |  selnez TMP0, TMP0, TMP2		// LUA_MULTRET+1 case?
   |  seleqz BASE, BASE, TMP2
-  |  b <3
-  |.  or BASE, BASE, TMP0
-  |.else
-  |.if MIPS3
-  |  seqz BASE, TMP2
-  |  negu BASE, BASE
-  |  and TMP0, TMP0, BASE		// LUA_MULTRET+1 case?
-  |  not BASE, BASE
-  |  and BASE, TMP2, BASE
   |.endif
   |  b <3
-  |.if MIPS3
+  |.if MIPS3 or MIPSR6
   |.  or BASE, BASE, TMP0
   |.else
   |.  movn BASE, TMP0, TMP2		// LUA_MULTRET+1 case?
-  |.endif
   |.endif
   |
   |8:  // Corner case: need to grow stack for filling up results.
