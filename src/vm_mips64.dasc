@@ -3564,14 +3564,15 @@ static void build_ins(BuildCtx *ctx, BCOp op, int defop)
     |.if FPU
     |.if MIPS3
     |  fcomp FTMP0, FTMP2
-    |.  addu TMP2, TMP2, TMP3
-    |.if "movop" == "movf"
+    |  addu TMP2, TMP2, TMP3
+    |.if "fmovop" == "movf"
     |  bc1t <1
-    |.else // "movop" == "movt"
+    |.else // "fmovop" == "movt"
     |  bc1f <1
     |.endif
     |. nop
-    |  move CRET2, r0
+    |  b <1
+    |.  move TMP2, r0
     |.elif not MIPSR6
     |  fcomp FTMP0, FTMP2
     |   addu TMP2, TMP2, TMP3
