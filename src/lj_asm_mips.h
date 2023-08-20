@@ -786,7 +786,7 @@ static void asm_conv(ASMState *as, IRIns *ir)
 	    emit_dta(as, MIPSI_SLL, dest, left, 0);
 	  } else {  /* 32 to 64 bit zero extension. */
 #if LJ_TARGET_MIPS3
-      emit_dta(as, MIPSI_DSRL32, dest, left, 0);
+      emit_dta(as, MIPSI_DSRL32, dest, dest, 0);
       emit_dta(as, MIPSI_DSLL32, dest, left, 0);
 #else
 	    emit_tsml(as, MIPSI_DEXT, dest, left, 31, 0);
@@ -800,7 +800,7 @@ static void asm_conv(ASMState *as, IRIns *ir)
 	  */
 	  Reg left = ra_alloc1(as, lref, RSET_GPR);
 #if LJ_TARGET_MIPS3
-    emit_dta(as, MIPSI_DSRL32, dest, left, 0);
+    emit_dta(as, MIPSI_DSRL32, dest, dest, 0);
     emit_dta(as, MIPSI_DSLL32, dest, left, 0);
 #else
 	  emit_tsml(as, MIPSI_DEXT, dest, left, 31, 0);
@@ -1437,8 +1437,8 @@ static void asm_ahuvload(ASMState *as, IRIns *ir)
 #if LJ_64
     if (irt_isaddr(t)) {
 #if LJ_TARGET_MIPS3
-      emit_dta(as, MIPSI_DSLL, dest, dest, 17);
       emit_dta(as, MIPSI_DSRL, dest, dest, 17);
+      emit_dta(as, MIPSI_DSLL, dest, dest, 17);
 #else
       emit_tsml(as, MIPSI_DEXTM, dest, dest, 14, 0);
 #endif
@@ -1521,8 +1521,8 @@ static void asm_ahustore(ASMState *as, IRIns *ir)
       if (irt_isinteger(ir->t)) {
 	emit_dst(as, MIPSI_DADDU, tmp, tmp, type);
 #if LJ_TARGET_MIPS3
-  emit_dta(as, MIPSI_DSLL32, tmp, tmp, 0);
   emit_dta(as, MIPSI_DSRL32, tmp, tmp, 0);
+  emit_dta(as, MIPSI_DSLL32, tmp, src, 0);
 #else
 	emit_tsml(as, MIPSI_DEXT, tmp, src, 31, 0);
 #endif
@@ -1607,8 +1607,8 @@ static void asm_sload(ASMState *as, IRIns *ir)
     else if (irt_isaddr(t)) {
       /* Clear type from pointers. */
 #if LJ_TARGET_MIPS3
-      emit_dta(as, MIPSI_DSLL, dest, dest, 17);
       emit_dta(as, MIPSI_DSRL, dest, dest, 17);
+      emit_dta(as, MIPSI_DSLL, dest, dest, 17);
 #else
       emit_tsml(as, MIPSI_DEXTM, dest, dest, 14, 0);
 #endif
@@ -1937,8 +1937,8 @@ static void asm_abs(ASMState *as, IRIns *ir)
   Reg dest = ra_dest(as, ir, RSET_GPR);
   Reg left = ra_alloc1(as, ir->op1, RSET_GPR);
 #if LJ_TARGET_MIPS3
-  emit_dta(as, MIPSI_DSLL, dest, left, 1);
   emit_dst(as, MIPSI_DSRL, dest, dest, 1);
+  emit_dta(as, MIPSI_DSLL, dest, left, 1);
 #else
   emit_tsml(as, MIPSI_DEXTM, dest, left, 30, 0);
 #endif
@@ -2173,7 +2173,7 @@ static void asm_bitshift(ASMState *as, IRIns *ir, MIPSIns mi, MIPSIns mik)
 
 static void asm_bror(ASMState *as, IRIns *ir)
 {
-  if (LJ_64 || (as->flags & JIT_F_MIPSXXR2)) {
+  if (as->flags & JIT_F_MIPSXXR2) {
     asm_bitshift(as, ir, MIPSI_ROTRV, MIPSI_ROTR);
   } else {
     Reg dest = ra_dest(as, ir, RSET_GPR);
@@ -2185,9 +2185,9 @@ static void asm_bror(ASMState *as, IRIns *ir)
       Reg right, left = ra_alloc2(as, ir, RSET_GPR);
       right = (left >> 8); left &= 255;
       emit_dst(as, MIPSI_OR, dest, dest, RID_TMP);
-      emit_dst(as, MIPSI_SRLV, dest, right, left);
-      emit_dst(as, MIPSI_SLLV, RID_TMP, RID_TMP, left);
-      emit_dst(as, MIPSI_SUBU, RID_TMP, ra_allock(as, 32, RSET_GPR), right);
+      emit_dst(as, MIPSI_DSRLV, dest, right, left);
+      emit_dst(as, MIPSI_DSLLV, RID_TMP, RID_TMP, left);
+      emit_dst(as, MIPSI_DSUBU, RID_TMP, ra_allock(as, 32, RSET_GPR), right);
     }
   }
 }
@@ -2257,14 +2257,14 @@ static void asm_min_max(ASMState *as, IRIns *ir, int ismax)
     emit_dst(as, MIPSI_OR, dest, dest, RID_TMP);
     if (dest != right) {
       emit_dst(as, MIPSI_AND, RID_TMP, right, RID_TMP);
-      emit_ds(as, MIPSI_NOT, RID_TMP, RID_ZERO);
+      emit_ds(as, MIPSI_NOT, RID_TMP, RID_TMP);
       emit_dst(as, MIPSI_AND, dest, left, RID_TMP);
     } else {
       emit_dst(as, MIPSI_AND, RID_TMP, left, RID_TMP);
-      emit_ds(as, MIPSI_NOT, RID_TMP, RID_ZERO);
+      emit_ds(as, MIPSI_NOT, RID_TMP, RID_TMP);
       emit_dst(as, MIPSI_AND, dest, right, RID_TMP);
     }
-    emit_tsi(as, MIPSI_DADDIU, RID_TMP, RID_TMP, -1);
+    emit_tsi(as, MIPSI_ADDIU, RID_TMP, RID_TMP, -1);
 #else
     if (left == right) {
       if (dest != left) emit_move(as, dest, left);
