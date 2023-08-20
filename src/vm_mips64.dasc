@@ -3829,15 +3829,16 @@ static void build_ins(BuildCtx *ctx, BCOp op, int defop)
     |  bne CARG4, TISNUM, >6
     |.   addu TMP2, TMP2, TMP3
     |  xor AT, CARG1, CARG2
+    |   snez CRET2, AT
     |.if MIPS3
     if (vk) {
-      | addiu CRET2, AT, -1
+      | addiu CRET2, CRET2, -1
       | and TMP2, TMP2, CRET2
       |1:
       |  daddu PC, PC, TMP2
       |2:
     } else {
-      |  negu CRET2, AT
+      |  negu CRET2, CRET2
       |  and TMP2, TMP2, CRET2
       |1:
       |2:
