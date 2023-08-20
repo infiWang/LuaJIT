@@ -569,7 +569,7 @@ static void build_subroutines(BuildCtx *ctx)
   |  subu TMP0, RD, TMP2
   |  dsubu TMP0, BASE, TMP0		// Either keep top or shrink it.
   |.if MIPS3
-  |  snez AT, TMP2			// LUA_MULTRET+1 case?
+  |  seqz AT, TMP2			// LUA_MULTRET+1 case?
   |  negu AT, AT
   |  and BASE, BASE, AT
   |  not AT, AT
