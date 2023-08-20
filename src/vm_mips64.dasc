@@ -3023,16 +3023,16 @@ static void build_subroutines(BuildCtx *ctx)
   |   dsll TMP0, TMP0, 32
   |   dmtc1 TMP0, f4
   |.if MIPS3
-  |  c.olt.d 0, FRET2, FRET1		// |x| < result?
+  |  c.olt.d FRET2, FRET1		// |x| < result?
   |   sub.d FRET2, FRET1, f4
-  |  bc1f >1
+  |  bc1f >4
   |. nop
   |  mov.d FRET1, FRET2		// If yes, subtract +1.
-  |1:
-  |  beq AT, r0, >2
+  |4:
+  |  beqz AT, >5
   |. neg.d FRET2, FRET1
   |  mov.d FRET1, FRET2		// Merge sign bit back in.
-  |2:
+  |5:
   |  jr ra
   |. nop
   |.elif not MIPSR6
@@ -3056,20 +3056,22 @@ static void build_subroutines(BuildCtx *ctx)
   |   dsll TMP0, TMP0, 32
   |   dmtc1 TMP0, f4
   |.if MIPS3
-  |  bne AT, r0, >1
+  |  beqz AT, >4
+  |.  nop
+  |  mov.d FRET1, FRET2		// Merge sign bit back in.
+  |4:
   |.if "func" == "ceil"
   |. c.olt.d FRET1, FARG1		// x > result?
   |.else
   |. c.olt.d FARG1, FRET1		// x < result?
   |.endif
-  |  mov.d FRET1, FRET2		// Merge sign bit back in.
-  |1:
-  |  bc1f >2
-  |.  sub.d FRET2, FRET1, f4
-  |  mov.d FRET1, FRET2		// If yes, subtract +-1.
-  |2:
+  |  sub.d FRET2, FRET1, f4
+  |  bc1f >5
+  |.  nop
+  |   mov.d FRET1, FRET2		// If yes, subtract +-1.
+  |5:
   |  jr ra
-  |. nop
+  |.  nop
   |.elif not MIPSR6
   |  movn.d FRET1, FRET2, AT		// Merge sign bit back in.
   |.if "func" == "ceil"
