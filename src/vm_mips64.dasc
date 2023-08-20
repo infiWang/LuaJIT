@@ -1320,10 +1320,14 @@ static void build_subroutines(BuildCtx *ctx)
   |  beq RC, TMP0, >5
   |.  li AT, LJ_TTAB
   |  bnez NODE:TMP2, <3
+  |.if MIPS3
+  |.  cleartp_a CARG1, RB
+  |.else
   |.  nop
+  |.endif
   |4:
   |.if MIPS3
-  |  cleartp CARG1, RB
+  |  cleartp_b CARG1
   |  dsll TMPex, AT, 47
   |.else
   |  move CARG1, RB
