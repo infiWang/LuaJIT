@@ -2011,17 +2011,17 @@ static void build_subroutines(BuildCtx *ctx)
   |  c.olt.d FRET1, FARG1
   |.endif
   |.if MIPS3
-  |  nop
-  |  bc1t >8
-  |  .nop
+  |   nop
+  |  bc1t >5
+  |.  nop
   |  mov.d FRET1, FARG1
-  |8:
   |.else
   |  movf.d FRET1, FARG1
   |.endif
   |.else
   |  fpins FRET1, FRET1, FARG1
   |.endif
+  |5:
   |.else
   |.if fpins  // ismax
   |  bal ->vm_sfcmpogt
