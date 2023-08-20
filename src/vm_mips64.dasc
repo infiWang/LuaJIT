@@ -4020,10 +4020,11 @@ static void build_ins(BuildCtx *ctx, BCOp op, int defop)
     |  lui TMP3, (-(BCBIAS_J*4 >> 16) & 65535)
     |  addu TMP2, TMP2, TMP3
     |.if MIPS3
+    |    snez AT, TMP0
     if (vk) {
-      |  addiu AT, TMP0, -1
+      |  addiu AT, AT, -1
     } else {
-      |  negu AT, TMP0
+      |  negu AT, AT
     }
     |   and TMP2, TMP2, AT
     |.elif not MIPSR6
