@@ -1258,7 +1258,7 @@ static void build_subroutines(BuildCtx *ctx)
   |.if MIPS3
   |  bnez TMP1, >1
   |. not TMP2, TMP0
-  |  li TMP3, ~LJ_TISNUM
+  |  li TMP2, ~LJ_TISNUM
   |.elif not MIPSR6
   |  not TMP2, TMP0
   |  li TMP3, ~LJ_TISNUM
