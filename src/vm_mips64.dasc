@@ -2460,18 +2460,17 @@ static void build_subroutines(BuildCtx *ctx)
   |.ffunc_bit bswap
   |.if MIPS3
   |  srl TMP0, CRET1, 8
-  |   ori TMP1, r0, 0xff00
-  |  and TMP0, TMP0, TMP1
+  |   andi TMP0, TMP0, 0xff00
   |   srl TMP1, CRET1, 24
   |  or TMP0, TMP0, TMP1
-  |   dsll TMP1, CRET1, 8
+  |   sll TMP1, CRET1, 8
   |    lui TMP2, 0x00ff
   |   and TMP1, TMP1, TMP2
-  |  dsll CRET1, CRET1, 24
+  |  sll CRET1, CRET1, 24
   |  or CRET1, CRET1, TMP1
   |  or CRET1, CRET1, TMP0
-  |   zextw_a CRET1, CRET1
-  |  j ->fff_resi
+  |  zextw_a CRET1, CRET1
+  |  b ->fff_resi
   |.  zextw_b CRET1
   |.else
   |  dsrl TMP0, CRET1, 8
