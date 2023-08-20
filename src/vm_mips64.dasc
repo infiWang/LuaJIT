@@ -193,10 +193,11 @@
 |  daddiu sp, sp, CFRAME_SPACE
 |.endmacro
 |
-|.if MIPS3
-|
 |.macro zextw_a, a, b; dsll a, b, 32; .endmacro
 |.macro zextw_b, a; dsrl a, a, 32; .endmacro
+|
+|.if MIPS3
+|
 |.macro zext.w, a, b
 |  dsll a, b, 32
 |  dsrl a, a, 32
@@ -415,12 +416,12 @@
 |.endif
 |
 |// Set type tag: Merge 17 type bits into bits [15+32=47, 31+32+1=64) of dst.
-|.if MIPS3
 |.macro settp_a, dst, tp;
 |  cleartp dst
 |  dsll TMPex, tp, 47
 |.endmacro
 |.macro settp_b, dst; or dst, dst, TMPex; .endmacro
+|.if MIPS3
 |.macro settp, dst, tp;
 |  cleartp dst
 |  dsll TMPex, tp, 47
