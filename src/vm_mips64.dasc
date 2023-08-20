@@ -5995,8 +5995,8 @@ static void build_ins(BuildCtx *ctx, BCOp op, int defop)
     |  not CRET2, CRET2
     |  and CARG1, CARG1, CRET2
     |  and CRET1, TISNIL, CRET2
-    |  or TMP0, TMP0, CARG1
-    |  or TMP3, TMP3, CRET1
+    |  or TMP0, TMP0, CRET1
+    |  or CARG1, CARG1, TMP3
     |.elif not MIPSR6
     |  movz TMP0, TISNIL, AT		// Clear missing parameters.
     |  movn CARG1, TISNIL, AT		// Clear old fixarg slot (help the GC).
