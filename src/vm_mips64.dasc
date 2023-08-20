@@ -403,7 +403,7 @@
 |
 |// Clear type tag. Isolate lowest 14+32+1=47 bits of reg.
 |.macro cleartp_a, dst, reg; dsll dst, reg, 17; .endmacro
-|.macro cleartp_b, dst, reg; dsrl dst, reg, 17; .endmacro
+|.macro cleartp_b, dst, reg; dsrl dst, dst, 17; .endmacro
 |.macro cleartp_a, dst; dsll dst, dst, 17; .endmacro
 |.macro cleartp_b, dst; dsrl dst, dst, 17; .endmacro
 |.if MIPS3
