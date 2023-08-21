@@ -609,7 +609,7 @@ static void asm_conv(ASMState *as, IRIns *ir)
       emit_tg(as, MIPSI_DMTC1, RID_TMP, dest);
 #if LJ_TARGET_MIPS3
       emit_dta(as, MIPSI_DSRL, RID_TMP, RID_TMP, 1);
-      emit_dta(as, MIPSI_DSLL, RID_TMP, RID_TMP, 1);
+      emit_dta(as, MIPSI_DSLL, RID_TMP, left, 1);
 #else
       emit_tsml(as, MIPSI_DEXTM, RID_TMP, left, 30, 0);
 #endif
