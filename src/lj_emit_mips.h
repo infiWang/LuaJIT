@@ -67,14 +67,20 @@ static void emit_fgh(ASMState *as, MIPSIns mi, Reg rf, Reg rg, Reg rh)
 
 #define emit_fg(as, mi, rf, rg)		emit_fgh(as, (mi), (rf), (rg), 0)
 
-static void emit_rotr(ASMState *as, Reg dest, Reg src, Reg tmp, uint32_t shift)
+static void emit_rotr(ASMState *as, Reg dest, Reg src, Reg tmp, uint32_t shift, int is64)
 {
-  if (LJ_64 || (as->flags & JIT_F_MIPSXXR2)) {
-    emit_dta(as, MIPSI_ROTR, dest, src, shift);
+  if (as->flags & JIT_F_MIPSXXR2) {
+    MIPSIns rori = (LJ_64 && is64) ? (shift & 32) ? MIPSI_DROTR32 : MIPSI_DROTR
+                                   : MIPSI_ROTR;
+    emit_dta(as, rori, dest, src, shift & 31);
   } else {
+    MIPSIns sai = (LJ_64 && is64) ? (shift & 32) ? MIPSI_DSRL32: MIPSI_DSRL
+                                  : MIPSI_SRL,
+            sbi = (LJ_64 && is64) ? ((-shift) & 32) ? MIPSI_DSLL32 : MIPSI_DSLL
+                                  : MIPSI_SLL;
     emit_dst(as, MIPSI_OR, dest, dest, tmp);
-    emit_dta(as, MIPSI_SLL, dest, src, (-shift)&31);
-    emit_dta(as, MIPSI_SRL, tmp, src, shift);
+    emit_dta(as, sbi, dest, src, (-shift)&31);
+    emit_dta(as, sai, tmp, src, shift&31);
   }
 }
 
