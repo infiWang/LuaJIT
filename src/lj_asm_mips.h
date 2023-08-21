@@ -2185,9 +2185,14 @@ static void asm_bror(ASMState *as, IRIns *ir)
       Reg right, left = ra_alloc2(as, ir, RSET_GPR);
       right = (left >> 8); left &= 255;
       emit_dst(as, MIPSI_OR, dest, dest, RID_TMP);
-      emit_dst(as, MIPSI_DSRLV, dest, right, left);
-      emit_dst(as, MIPSI_DSLLV, RID_TMP, RID_TMP, left);
-      emit_dst(as, MIPSI_DSUBU, RID_TMP, ra_allock(as, 32, RSET_GPR), right);
+      if (dest == left) {
+        emit_dst(as, LJ_32 ? MIPSI_SRLV : MIPSI_DSRLV, dest, right, left);
+        emit_dst(as, LJ_32 ? MIPSI_SLLV : MIPSI_DSLLV, RID_TMP, RID_TMP, left);
+      } else {
+        emit_dst(as, LJ_32 ? MIPSI_SLLV : MIPSI_DSLLV, RID_TMP, RID_TMP, left);
+        emit_dst(as, LJ_32 ? MIPSI_SRLV : MIPSI_DSRLV, dest, right, left);
+      }
+      emit_dst(as, LJ_32 ? MIPSI_SUBU : MIPSI_DSUBU, RID_TMP, RID_ZERO, right);
     }
   }
 }
