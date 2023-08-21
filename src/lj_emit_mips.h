@@ -3,6 +3,7 @@
 ** Copyright (C) 2005-2022 Mike Pall. See Copyright Notice in luajit.h
 */
 
+#include "lj_def.h"
 #if LJ_64
 static intptr_t get_k64val(ASMState *as, IRRef ref)
 {
@@ -31,10 +32,12 @@ static intptr_t get_k64val(ASMState *as, IRRef ref)
 
 /* -- Emit basic instructions --------------------------------------------- */
 
+#if LJ_TARGET_MIPS3
 static void emit_nop(ASMState *as)
 {
   *--as->mcp = MIPSI_NOP;
 }
+#endif
 
 static void emit_dst(ASMState *as, MIPSIns mi, Reg rd, Reg rs, Reg rt)
 {
