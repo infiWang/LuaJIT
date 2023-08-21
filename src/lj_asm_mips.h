@@ -2292,8 +2292,8 @@ static void asm_min_max(ASMState *as, IRIns *ir, int ismax)
 	emit_dst(as, MIPSI_SELEQZ, RID_TMP, left, RID_TMP);
 	emit_dst(as, MIPSI_SELNEZ, dest, right, RID_TMP);
       }
-    }
 #endif
+    }
 #endif
     emit_dst(as, MIPSI_SLT, RID_TMP,
 	     ismax ? left : right, ismax ? right : left);
