@@ -2230,18 +2230,21 @@ static void asm_min_max(ASMState *as, IRIns *ir, int ismax)
     right = (left >> 8); left &= 255;
 #if LJ_TARGET_MIPS3
     if (dest == left) {
-      emit_fg(as, MIPSI_MOV_D, dest, left);
       emit_fg(as, MIPSI_MOV_D, dest, right);
+      emit_nop(as);
       emit_branch(as, MIPSI_BC1T, 0, 0, as->mcp + 2);
-    } else {
-      emit_fg(as, MIPSI_MOV_D, dest, right);
+    } else if (dest == right) {
       emit_fg(as, MIPSI_MOV_D, dest, left);
+      emit_nop(as);
+      emit_branch(as, MIPSI_BC1F, 0, 0, as->mcp + 2);
+    } else {
+      emit_fg(as, MIPSI_MOV_D, dest, left);
+      emit_fg(as, MIPSI_MOV_D, dest, right);
       emit_branch(as, MIPSI_BC1F, 0, 0, as->mcp + 2);
     }
     emit_nop(as);
     emit_fgh(as, MIPSI_C_OLT_D, 0, ismax ? right : left, ismax ? left : right);
-#else
-#if !LJ_TARGET_MIPSR6
+#elif !LJ_TARGET_MIPSR6
     if (dest == left) {
       emit_fg(as, MIPSI_MOVF_D, dest, right);
     } else {
@@ -2251,7 +2254,6 @@ static void asm_min_max(ASMState *as, IRIns *ir, int ismax)
     emit_fgh(as, MIPSI_C_OLT_D, 0, ismax ? right : left, ismax ? left : right);
 #else
     emit_fgh(as, ismax ? MIPSI_MAX_D : MIPSI_MIN_D, dest, left, right);
-#endif
 #endif
 #endif
   } else {
