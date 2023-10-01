@@ -1,6 +1,6 @@
 |// Low-level VM code for MIPS64 CPUs.
 |// Bytecode interpreter, fast functions and helper functions.
-|// Copyright (C) 2005-2022 Mike Pall. See Copyright Notice in luajit.h
+|// Copyright (C) 2005-2023 Mike Pall. See Copyright Notice in luajit.h
 |//
 |// Contributed by Djordje Kovacevic and Stefan Pejic from RT-RK.com.
 |// Sponsored by Cisco Systems, Inc.
@@ -3448,7 +3448,6 @@ static void build_subroutines(BuildCtx *ctx)
   |  move TMP2, sp
   |  dsubu sp, sp, TMP1
   |  sd ra, -8(TMP2)
-  |   sll CARG2, CARG2, 3
   |  sd r16, -16(TMP2)
   |  sd CCSTATE, -24(TMP2)
   |  move r16, TMP2
@@ -5973,6 +5972,7 @@ static void build_ins(BuildCtx *ctx, BCOp op, int defop)
     |   settp LFUNC:RB, TMP0
     |  daddu TMP0, RA, RC
     |   sd LFUNC:RB, 0(TMP1)		// Store (tagged) copy of LFUNC.
+    |  daddiu TMP2, TMP2, -8
     |   daddiu TMP3, RC, 16+FRAME_VARG
     |  sltu AT, TMP0, TMP2
     |    ld KBASE, -4+PC2PROTO(k)(PC)
