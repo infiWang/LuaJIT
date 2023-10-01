@@ -1163,7 +1163,7 @@ static void asm_href(ASMState *as, IRIns *ir, IROp merge)
       }
 #else
       emit_dst(as, MIPSI_XOR, tmp2, tmp2, tmp1);
-      emit_dta(as, MIPSI_ROTR, dest, tmp1, (-HASH_ROT1)&31);
+      emit_rotr(as, dest, tmp1, RID_TMP, (-HASH_ROT1)&31, 0);
       if (irt_isnum(kt)) {
 	emit_dst(as, MIPSI_ADDU, tmp1, tmp1, tmp1);
 	emit_dta(as, MIPSI_DSRA32, tmp1, LJ_SOFTFP ? key : tmp1, 0);
