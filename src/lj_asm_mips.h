@@ -2103,13 +2103,14 @@ static void asm_bnot(ASMState *as, IRIns *ir)
 static void asm_bswap(ASMState *as, IRIns *ir)
 {
   Reg dest = ra_dest(as, ir, RSET_GPR);
-  Reg left = ra_alloc1(as, ir->op1, RSET_GPR);
+  Reg left = ra_alloc1(as, ir->op1, rset_exclude(RSET_GPR, dest));
+  RegSet allow = rset_exclude(rset_exclude(RSET_GPR, left), dest);
 #if LJ_32
   if ((as->flags & JIT_F_MIPSXXR2)) {
     emit_dta(as, MIPSI_ROTR, dest, RID_TMP, 16);
     emit_dst(as, MIPSI_WSBH, RID_TMP, 0, left);
   } else {
-    Reg tmp = ra_scratch(as, rset_exclude(rset_exclude(RSET_GPR, left), dest));
+    Reg tmp = ra_scratch(as, allow);
     emit_dst(as, MIPSI_OR, dest, dest, tmp);
     emit_dst(as, MIPSI_OR, dest, dest, RID_TMP);
     emit_tsi(as, MIPSI_ANDI, dest, dest, 0xff00);
@@ -2122,11 +2123,91 @@ static void asm_bswap(ASMState *as, IRIns *ir)
   }
 #else
   if (irt_is64(ir->t)) {
-    emit_dst(as, MIPSI_DSHD, dest, 0, RID_TMP);
-    emit_dst(as, MIPSI_DSBH, RID_TMP, 0, left);
+    if ((as->flags & JIT_F_MIPSXXR2)) {
+      emit_dst(as, MIPSI_DSHD, dest, 0, RID_TMP);
+      emit_dst(as, MIPSI_DSBH, RID_TMP, 0, left);
+    } else {
+      Reg tmp1, tmp2, tmp3;
+      tmp1 = ra_scratch(as, allow); allow = rset_exclude(allow, tmp1);
+      tmp2 = ra_scratch(as, allow); allow = rset_exclude(allow, tmp2);
+      tmp3 = ra_scratch(as, allow);
+      /* From clang, broken... */
+      // emit_dst(as, MIPSI_OR, dest, dest, left);
+      // emit_dst(as, MIPSI_AND, left, left, RID_TMP);
+      // emit_dst(as, MIPSI_OR, dest, dest, tmp1);
+      // emit_dta(as, MIPSI_DSLL32, left, left, 8);
+      // emit_dta(as, MIPSI_DSLL32, RID_TMP, RID_TMP, 16);
+      // emit_dst(as, MIPSI_AND, tmp1, tmp1, tmp3);
+      // emit_dst(as, MIPSI_OR, dest, dest, tmp2);
+      // emit_dta(as, MIPSI_DSLL, tmp1, left, 24);
+      // emit_dta(as, MIPSI_DSLL32, tmp3, RID_TMP, 8);
+      // emit_dst(as, MIPSI_OR, dest, dest, tmp1);
+      // emit_dst(as, MIPSI_AND, tmp2, tmp2, tmp3);
+      // emit_dta(as, MIPSI_DSLL, tmp2, left, 8);
+      // emit_dta(as, MIPSI_DSLL32, tmp3, RID_TMP, 0);
+      // emit_dst(as, MIPSI_OR, dest, dest, tmp2);
+      // emit_dst(as, MIPSI_AND, tmp1, tmp1, tmp3);
+      // emit_dta(as, MIPSI_DSRL, tmp1, left, 8);
+      // emit_dta(as, MIPSI_DSLL, tmp3, RID_TMP, 24);
+      // emit_dst(as, MIPSI_AND, tmp2, tmp2, tmp1);
+      // emit_ti(as, MIPSI_LUI, tmp1, 0x00ff);
+      // emit_dst(as, MIPSI_OR, dest, dest, tmp1);
+      // emit_dta(as, MIPSI_DSRL, tmp2, left, 24);
+      // emit_ti(as, MIPSI_LI, RID_TMP, 0x00ff);
+      // emit_tsi(as, MIPSI_ANDI, tmp1, tmp1, 0xff00);
+      // emit_dst(as, MIPSI_OR, dest, dest, tmp2);
+      // emit_dta(as, MIPSI_DSRL32, tmp1, left, 8);
+      // emit_dta(as, MIPSI_DSRL32, dest, left, 24);
+      // emit_dta(as, MIPSI_DSLL32, tmp2, left, 24);
+      /* bswapsi2(left<<32)<<32 | bswapsi2((uint32_t)(left>>32)), cursed */
+      emit_dst(as, MIPSI_OR, dest, tmp2, tmp3);
+
+      emit_dta(as, MIPSI_DSLL32, tmp2, tmp2, 0);
+
+      emit_dst(as, MIPSI_OR, tmp2, tmp2, tmp1);
+      emit_dst(as, MIPSI_OR, tmp2, tmp2, RID_TMP);
+      emit_tsi(as, MIPSI_ANDI, tmp2, tmp2, 0xff00);
+      emit_dta(as, MIPSI_SLL, RID_TMP, RID_TMP, 8);
+      emit_dta(as, MIPSI_SRL, tmp2, tmp2, 8);
+      emit_tsi(as, MIPSI_ANDI, RID_TMP, tmp2, 0xff00);
+      emit_dst(as, MIPSI_OR, tmp1, tmp1, RID_TMP);
+      emit_dta(as, MIPSI_SRL, tmp1, tmp2, 24);
+      emit_dta(as, MIPSI_SLL, RID_TMP, tmp2, 24);
+
+      emit_dta(as, MIPSI_DSRL32, tmp2, tmp2, 0);
+      emit_dta(as, MIPSI_DSLL32, tmp2, left, 0);
+
+      emit_dta(as, MIPSI_DSRL32, tmp3, tmp3, 0);
+      emit_dta(as, MIPSI_DSLL32, tmp3, tmp3, 0);
+
+      emit_dst(as, MIPSI_OR, tmp3, tmp3, tmp1);
+      emit_dst(as, MIPSI_OR, tmp3, tmp3, RID_TMP);
+      emit_tsi(as, MIPSI_ANDI, tmp3, tmp3, 0xff00);
+      emit_dta(as, MIPSI_SLL, RID_TMP, RID_TMP, 8);
+      emit_dta(as, MIPSI_SRL, tmp3, tmp3, 8);
+      emit_tsi(as, MIPSI_ANDI, RID_TMP, tmp3, 0xff00);
+      emit_dst(as, MIPSI_OR, tmp1, tmp1, RID_TMP);
+      emit_dta(as, MIPSI_SRL, tmp1, tmp3, 24);
+      emit_dta(as, MIPSI_SLL, RID_TMP, tmp3, 24);
+
+      emit_dta(as, MIPSI_DSRL32, tmp3, left, 0);
+    }
   } else {
-    emit_dta(as, MIPSI_ROTR, dest, RID_TMP, 16);
-    emit_dst(as, MIPSI_WSBH, RID_TMP, 0, left);
+    if ((as->flags & JIT_F_MIPSXXR2)) {
+      emit_dta(as, MIPSI_ROTR, dest, RID_TMP, 16);
+      emit_dst(as, MIPSI_WSBH, RID_TMP, 0, left);
+    } else {
+      Reg tmp = ra_scratch(as, allow);
+      emit_dst(as, MIPSI_OR, dest, dest, tmp);
+      emit_dst(as, MIPSI_OR, dest, dest, RID_TMP);
+      emit_tsi(as, MIPSI_ANDI, dest, dest, 0xff00);
+      emit_dta(as, MIPSI_SLL, RID_TMP, RID_TMP, 8);
+      emit_dta(as, MIPSI_SRL, dest, left, 8);
+      emit_tsi(as, MIPSI_ANDI, RID_TMP, left, 0xff00);
+      emit_dst(as, MIPSI_OR, tmp, tmp, RID_TMP);
+      emit_dta(as, MIPSI_SRL, tmp, left, 24);
+      emit_dta(as, MIPSI_SLL, RID_TMP, left, 24);
+    }
   }
 #endif
 }
