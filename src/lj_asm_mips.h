@@ -1891,7 +1891,12 @@ static void asm_mul(ASMState *as, IRIns *ir)
       emit_dst(as, MIPSI_DMUL, dest, left, right);
 #endif
     } else {
+#if LJ_TARGET_MIPS3
+      emit_dst(as, MIPSI_MFLO, dest, 0, 0);
+      emit_dst(as, MIPSI_MULT, 0, left, right);
+#else
       emit_dst(as, MIPSI_MUL, dest, left, right);
+#endif
     }
   }
 }
