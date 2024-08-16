@@ -1,6 +1,8 @@
 /*
 ** RISC-V instruction emitter.
 ** Copyright (C) 2005-2023 Mike Pall. See Copyright Notice in luajit.h
+**
+** Contributed by gns from PLCT Lab, ISCAS.
 */
 
 static intptr_t get_k64val(ASMState *as, IRRef ref)

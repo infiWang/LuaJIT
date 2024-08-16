@@ -5,6 +5,7 @@
 -- Released under the MIT license. See Copyright Notice in luajit.h
 --
 -- Contributed by Milos Poletanovic from Syrmia.com.
+-- Contributed by gns from PLCT Lab, ISCAS.
 ------------------------------------------------------------------------------
 -- This is a helper module used by the LuaJIT machine code dumper module.
 --
