@@ -1,7 +1,7 @@
 ----------------------------------------------------------------------------
 -- LuaJIT RISC-V 64 disassembler wrapper module.
 --
--- Copyright (C) 2005-2022 Mike Pall. All rights reserved.
+-- Copyright (C) 2005-2023 Mike Pall. All rights reserved.
 -- Released under the MIT license. See Copyright Notice in luajit.h
 ----------------------------------------------------------------------------
 -- This module just exports the default riscv little-endian functions from the
