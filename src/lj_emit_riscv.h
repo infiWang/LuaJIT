@@ -328,23 +328,23 @@ static void emit_loadu64(ASMState *as, Reg r, uint64_t u64)
     emit_loadk32(as, r, (int32_t)u64);
   } else {
     uint32_t lo32 = u64 & 0xfffffffful;
-    RISCVIns instrs[7] = {0};
+    RISCVIns li_insn[7] = {0};
     int shamt = 0, step = 0;
     for(int bit = 0; bit < 32; bit++) {
       if (lo32 & (1u << bit)) {
-  if (shamt) instrs[step++] = RISCVI_SLLI | RISCVF_D(r) | RISCVF_S1(r) | RISCVF_IMMI(shamt);
+  if (shamt) li_insn[step++] = RISCVI_SLLI | RISCVF_D(r) | RISCVF_S1(r) | RISCVF_IMMI(shamt);
   int inc = bit+10 > 31 ? 31-bit : 10;
   bit += inc, shamt = inc+1;
   uint32_t msk = ((1ul << (bit+1))-1)^((1ul << (((bit-inc) >= 0) ? (bit-inc) : 0))-1);
   uint16_t payload = (lo32 & msk) >> (((bit-inc) >= 0) ? (bit-inc) : 0);
-  instrs[step++] = RISCVI_ADDI | RISCVF_D(r) | RISCVF_S1(r) | RISCVF_IMMI(payload);
+  li_insn[step++] = RISCVI_ADDI | RISCVF_D(r) | RISCVF_S1(r) | RISCVF_IMMI(payload);
       } else shamt++;
     }
-    if (shamt) instrs[step++] = RISCVI_SLLI | RISCVF_D(r) | RISCVF_S1(r) | RISCVF_IMMI(shamt);
+    if (shamt) li_insn[step++] = RISCVI_SLLI | RISCVF_D(r) | RISCVF_S1(r) | RISCVF_IMMI(shamt);
 
     if (step < 6) {
       for(int i = 0; i < step; i++)
-        *--as->mcp = instrs[i];
+        *--as->mcp = li_insn[i];
     } else {
       emit_dsi(as, RISCVI_ADDI, r, r, u64 & 0x3ff);
       emit_dsshamt(as, RISCVI_SLLI, r, r, 10);
