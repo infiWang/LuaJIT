@@ -153,10 +153,13 @@ static LJ_AINLINE uint32_t *exitstub_trace_addr_(uint32_t *p, uint32_t exitno)
 
 /* Check for valid field range. */
 #define RISCVF_SIMM_OK(x, b)	((((x) + (1 << (b-1))) >> (b)) == 0)
+#define RISCVF_UIMM_OK(x, b)	(((x) >> (b)) == 0)
+#define checku11(i)		RISCVF_UIMM_OK(i, 11)
 #define checki12(i)		RISCVF_SIMM_OK(i, 12)
 #define checki13(i)		RISCVF_SIMM_OK(i, 13)
 #define checki20(i)		RISCVF_SIMM_OK(i, 20)
 #define checki21(i)		RISCVF_SIMM_OK(i, 21)
+#define checki32auipc(i) (checki32(i) && (int32_t)(i) < 0x7ffff800)
 
 typedef enum RISCVIns {
 
