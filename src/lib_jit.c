@@ -651,7 +651,7 @@ static int riscv_compressed()
   /* Don't bother checking for RVC -- would crash before getting here. */
   return 1;
 #elif LJ_TARGET_LINUX
-  return ((*hwprobe_ext) & RISCV_HWPROBE_IMA_C) ? 1 : 0;
+  return (hwprobe_ret == 0 && ((*hwprobe_ext) & RISCV_HWPROBE_IMA_C)) ? 1 : 0;
 #else
   return 0;
 #endif
@@ -663,7 +663,7 @@ static int riscv_zba()
   /* Don't bother checking for Zba -- would crash before getting here. */
   return 1;
 #elif LJ_TARGET_LINUX
-  return ((*hwprobe_ext) & RISCV_HWPROBE_EXT_ZBA) ? 1 : 0;
+  return (hwprobe_ret == 0 && ((*hwprobe_ext) & RISCV_HWPROBE_EXT_ZBA)) ? 1 : 0;
 #else
   return 0;
 #endif
@@ -675,7 +675,7 @@ static int riscv_zbb()
   /* Don't bother checking for Zbb -- would crash before getting here. */
   return 1;
 #elif LJ_TARGET_LINUX
-  return ((*hwprobe_ext) & RISCV_HWPROBE_EXT_ZBB) ? 1 : 0;
+  return (hwprobe_ret == 0 && ((*hwprobe_ext) & RISCV_HWPROBE_EXT_ZBB)) ? 1 : 0;
 #else
   return 0;
 #endif
@@ -687,7 +687,7 @@ static int riscv_zicond()
   /* Don't bother checking for Zicond -- would crash before getting here. */
   return 1;
 #elif LJ_TARGET_LINUX
-  return ((*hwprobe_ext) & RISCV_HWPROBE_EXT_ZICOND) ? 1 : 0;
+  return (hwprobe_ret == 0 && ((*hwprobe_ext) & RISCV_HWPROBE_EXT_ZICOND)) ? 1 : 0;
 #else
   return 0;
 #endif
@@ -784,17 +784,17 @@ static uint32_t jit_cpudetect(void)
 #if LJ_HASJIT
 
 #if LJ_TARGET_LINUX
+  /* HWPROBE-based detection of RVC, Zba, Zbb and Zicond. */
   hwprobe_ret = syscall(__NR_riscv_hwprobe, &hwprobe_requests,
                 sizeof(hwprobe_requests) / sizeof(struct riscv_hwprobe), 0,
 			          NULL, 0);
-  if (hwprobe_ret == 0) {
-  /* HWPROBE-based detection of RVC, Zba, Zbb and Zicond. */
-    flags |= riscv_probe(riscv_compressed, JIT_F_RVC);
-    flags |= riscv_probe(riscv_zba, JIT_F_RVZba);
-    flags |= riscv_probe(riscv_zbb, JIT_F_RVZbb);
-    flags |= riscv_probe(riscv_zicond, JIT_F_RVZicond);
-    flags |= riscv_probe(riscv_xthead, JIT_F_RVXThead);
-  }
+
+  flags |= riscv_probe(riscv_compressed, JIT_F_RVC);
+  flags |= riscv_probe(riscv_zba, JIT_F_RVZba);
+  flags |= riscv_probe(riscv_zbb, JIT_F_RVZbb);
+  flags |= riscv_probe(riscv_zicond, JIT_F_RVZicond);
+  flags |= riscv_probe(riscv_xthead, JIT_F_RVXThead);
+
 #endif
 
   /* Detect V/P? */
