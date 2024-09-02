@@ -2354,17 +2354,17 @@ static void asm_min_max(ASMState *as, IRIns *ir, int ismax)
     Reg right, left = ra_alloc2(as, ir, RSET_GPR);
     right = (left >> 8); left &= 255;
 #if LJ_TARGET_MIPS3
-    emit_dst(as, MIPSI_OR, dest, dest, RID_TMP);
     if (dest != right) {
-      emit_dst(as, MIPSI_AND, RID_TMP, right, RID_TMP);
-      emit_ds(as, MIPSI_NOT, RID_TMP, RID_TMP);
-      emit_dst(as, MIPSI_AND, dest, left, RID_TMP);
+      emit_dst(as, MIPSI_XOR, dest, right, dest);
+      emit_dst(as, MIPSI_AND, dest, dest, RID_TMP);
+      emit_dst(as, MIPSI_XOR, dest, right, left);
+      emit_tsi(as, MIPSI_ADDIU, RID_TMP, RID_TMP, -1);
     } else {
-      emit_dst(as, MIPSI_AND, RID_TMP, left, RID_TMP);
-      emit_ds(as, MIPSI_NOT, RID_TMP, RID_TMP);
-      emit_dst(as, MIPSI_AND, dest, right, RID_TMP);
+      emit_dst(as, MIPSI_XOR, dest, left, dest);
+      emit_dst(as, MIPSI_AND, dest, dest, RID_TMP);
+      emit_dst(as, MIPSI_XOR, dest, left, right);
+      emit_dst(as, MIPSI_SUBU, RID_TMP, RID_ZERO, RID_TMP);
     }
-    emit_tsi(as, MIPSI_ADDIU, RID_TMP, RID_TMP, -1);
 #else
     if (left == right) {
       if (dest != left) emit_move(as, dest, left);
