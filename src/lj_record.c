@@ -903,6 +903,7 @@ void lj_record_ret(jit_State *J, BCReg rbase, ptrdiff_t gotresults)
 {
   TValue *frame = J->L->base - 1;
   ptrdiff_t i;
+  BCReg baseadj = 0;
   for (i = 0; i < gotresults; i++)
     (void)getslot(J, rbase+i);  /* Ensure all results have a reference. */
   while (frame_ispcall(frame)) {  /* Immediately resolve pcall() returns. */
@@ -911,6 +912,7 @@ void lj_record_ret(jit_State *J, BCReg rbase, ptrdiff_t gotresults)
       lj_trace_err(J, LJ_TRERR_NYIRETL);
     lj_assertJ(J->baseslot > 1+LJ_FR2, "bad baseslot for return");
     gotresults++;
+    baseadj += cbase;
     rbase += cbase;
     J->baseslot -= (BCReg)cbase;
     J->base -= cbase;
@@ -935,6 +937,7 @@ void lj_record_ret(jit_State *J, BCReg rbase, ptrdiff_t gotresults)
     if (--J->framedepth < 0)  /* NYI: return of vararg func to lower frame. */
       lj_trace_err(J, LJ_TRERR_NYIRETL);
     lj_assertJ(J->baseslot > 1+LJ_FR2, "bad baseslot for return");
+    baseadj += cbase;
     rbase += cbase;
     J->baseslot -= (BCReg)cbase;
     J->base -= cbase;
@@ -948,7 +951,7 @@ void lj_record_ret(jit_State *J, BCReg rbase, ptrdiff_t gotresults)
     if ((pt->flags & PROTO_NOJIT))
       lj_trace_err(J, LJ_TRERR_CJITOFF);
     if (J->framedepth == 0 && J->pt && frame == J->L->base - 1) {
-      if (check_downrec_unroll(J, pt)) {
+      if (!J->cur.root && check_downrec_unroll(J, pt)) {
 	J->maxslot = (BCReg)(rbase + gotresults);
 	lj_snap_purge(J);
 	lj_record_stop(J, LJ_TRLINK_DOWNREC, J->cur.traceno);  /* Down-rec. */
@@ -970,6 +973,8 @@ void lj_record_ret(jit_State *J, BCReg rbase, ptrdiff_t gotresults)
       lj_trace_err(J, LJ_TRERR_LLEAVE);
     } else if (J->needsnap) {  /* Tailcalled to ff with side-effects. */
       lj_trace_err(J, LJ_TRERR_NYIRETL);  /* No way to insert snapshot here. */
+    } else if (1 + pt->framesize >= LJ_MAX_JSLOTS) {
+      lj_trace_err(J, LJ_TRERR_STACKOV);
     } else {  /* Return to lower frame. Guard for the target we return to. */
       TRef trpt = lj_ir_kgc(J, obj2gco(pt), IRT_PROTO);
       TRef trpc = lj_ir_kptr(J, (void *)frame_pc(frame));
@@ -1003,7 +1008,8 @@ void lj_record_ret(jit_State *J, BCReg rbase, ptrdiff_t gotresults)
       BCReg bslot = bc_b(*(frame_contpc(frame)-1));
       TRef tr = gotresults ? J->base[cbase+rbase] : TREF_NIL;
       if (bslot != J->maxslot) {  /* Concatenate the remainder. */
-	TValue *b = J->L->base, save;  /* Simulate lower frame and result. */
+	/* Simulate lower frame and result. */
+	TValue *b = J->L->base - baseadj, save;
 	/* Can't handle MM_concat + CALLT + fast func side-effects. */
 	if (J->postproc != LJ_POST_NONE)
 	  lj_trace_err(J, LJ_TRERR_NYIRETL);
@@ -1016,10 +1022,12 @@ void lj_record_ret(jit_State *J, BCReg rbase, ptrdiff_t gotresults)
 	J->L->base = b - cbase;
 	tr = rec_cat(J, bslot, cbase-(2<<LJ_FR2));
 	b = J->L->base + cbase;  /* Undo. */
-	J->L->base = b;
+	J->L->base = b + baseadj;
 	copyTV(J->L, b-(2<<LJ_FR2), &save);
       }
-      if (tr) {  /* Store final result. */
+      if (tr >= 0xffffff00) {
+	lj_err_throw(J->L, -(int32_t)tr);  /* Propagate errors. */
+      } else if (tr) {  /* Store final result. */
 	BCReg dst = bc_a(*(frame_contpc(frame)-1));
 	J->base[dst] = tr;
 	if (dst >= J->maxslot) {
@@ -1387,12 +1395,13 @@ static void rec_idx_abc(jit_State *J, TRef asizeref, TRef ikey, uint32_t asize)
       /* Runtime value for stop of loop is within bounds? */
       if ((uint64_t)stop + ofs < (uint64_t)asize) {
 	/* Emit invariant bounds check for stop. */
-	emitir(IRTG(IR_ABC, IRT_P32), asizeref, ofs == 0 ? J->scev.stop :
+	uint32_t abc = IRTG(IR_ABC, tref_isk(asizeref) ? IRT_U32 : IRT_P32);
+	emitir(abc, asizeref, ofs == 0 ? J->scev.stop :
 	       emitir(IRTI(IR_ADD), J->scev.stop, ofsref));
 	/* Emit invariant bounds check for start, if not const or negative. */
 	if (!(J->scev.dir && J->scev.start &&
 	      (int64_t)IR(J->scev.start)->i + ofs >= 0))
-	  emitir(IRTG(IR_ABC, IRT_P32), asizeref, ikey);
+	  emitir(abc, asizeref, ikey);
 	return;
       }
     }
@@ -2069,12 +2078,27 @@ static TRef rec_tnew(jit_State *J, uint32_t ah)
 
 /* -- Concatenation ------------------------------------------------------- */
 
+typedef struct RecCatDataCP {
+  jit_State *J;
+  RecordIndex *ix;
+} RecCatDataCP;
+
+static TValue *rec_mm_concat_cp(lua_State *L, lua_CFunction dummy, void *ud)
+{
+  RecCatDataCP *rcd = (RecCatDataCP *)ud;
+  UNUSED(L); UNUSED(dummy);
+  rec_mm_arith(rcd->J, rcd->ix, MM_concat);  /* Call __concat metamethod. */
+  return NULL;
+}
+
 static TRef rec_cat(jit_State *J, BCReg baseslot, BCReg topslot)
 {
   TRef *top = &J->base[topslot];
   TValue savetv[5+LJ_FR2];
   BCReg s;
   RecordIndex ix;
+  RecCatDataCP rcd;
+  int errcode;
   lj_assertJ(baseslot < topslot, "bad CAT arg");
   for (s = baseslot; s <= topslot; s++)
     (void)getslot(J, s);  /* Ensure all arguments have a reference. */
@@ -2110,8 +2134,11 @@ static TRef rec_cat(jit_State *J, BCReg baseslot, BCReg topslot)
   ix.tab = top[-1];
   ix.key = top[0];
   memcpy(savetv, &J->L->base[topslot-1], sizeof(savetv));  /* Save slots. */
-  rec_mm_arith(J, &ix, MM_concat);  /* Call __concat metamethod. */
+  rcd.J = J;
+  rcd.ix = &ix;
+  errcode = lj_vm_cpcall(J->L, NULL, &rcd, rec_mm_concat_cp);
   memcpy(&J->L->base[topslot-1], savetv, sizeof(savetv));  /* Restore slots. */
+  if (errcode) return (TRef)(-errcode);
   return 0;  /* No result yet. */
 }
 
@@ -2434,6 +2461,8 @@ void lj_record_ins(jit_State *J)
 
   case BC_CAT:
     rc = rec_cat(J, rb, rc);
+    if (rc >= 0xffffff00)
+      lj_err_throw(J->L, -(int32_t)rc);  /* Propagate errors. */
     break;
 
   /* -- Constant and move ops --------------------------------------------- */
