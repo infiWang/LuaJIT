@@ -760,17 +760,13 @@ static void asm_conv(ASMState *as, IRIns *ir)
       Reg left = ra_alloc1(as, ir->op1, RSET_GPR);
       lj_assertA(irt_isint(ir->t) || irt_isu32(ir->t), "bad type for CONV EXT");
       if ((ir->op2 & IRCONV_SEXT)) {
-#if !LJ_TARGET_MIPS3
-	if (LJ_64 || (as->flags & JIT_F_MIPSXXR2)) {
+	if (as->flags & JIT_F_MIPSXXR2) {
 	  emit_dst(as, st == IRT_I8 ? MIPSI_SEB : MIPSI_SEH, dest, 0, left);
 	} else {
-#endif
 	  uint32_t shift = st == IRT_I8 ? 24 : 16;
 	  emit_dta(as, MIPSI_SRA, dest, dest, shift);
 	  emit_dta(as, MIPSI_SLL, dest, left, shift);
-#if !LJ_TARGET_MIPS3
 	}
-#endif
       } else {
 	emit_tsi(as, MIPSI_ANDI, dest, left,
 		 (int32_t)(st == IRT_U8 ? 0xff : 0xffff));
