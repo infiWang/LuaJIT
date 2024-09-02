@@ -474,7 +474,7 @@ static void asm_bufhdr_write(ASMState *as, Reg sb)
   IRIns irgc;
   irgc.ot = IRT(0, IRT_PGC);  /* GC type. */
   emit_storeofs(as, &irgc, RID_TMP, sb, offsetof(SBuf, L));
-  if ((as->flags & JIT_F_MIPSXXR2)) {
+  if (as->flags & JIT_F_MIPSXXR2) {
     emit_tsml(as, LJ_64 ? MIPSI_DINS : MIPSI_INS, RID_TMP, tmp,
 	      lj_fls(SBUF_MASK_FLAG), 0);
   } else {
@@ -1141,7 +1141,7 @@ static void asm_href(ASMState *as, IRIns *ir, IROp merge)
 #if LJ_32
       if (LJ_SOFTFP ? (irkey[1].o == IR_HIOP) : irt_isnum(kt)) {
 	emit_dst(as, MIPSI_XOR, tmp2, tmp2, tmp1);
-	if ((as->flags & JIT_F_MIPSXXR2)) {
+	if (as->flags & JIT_F_MIPSXXR2) {
 	  emit_dta(as, MIPSI_ROTR, dest, tmp1, (-HASH_ROT1)&31);
 	} else {
 	  emit_dst(as, MIPSI_OR, dest, dest, tmp1);
@@ -2118,7 +2118,7 @@ static void asm_bswap(ASMState *as, IRIns *ir)
   Reg left = ra_alloc1(as, ir->op1, rset_exclude(RSET_GPR, dest));
   RegSet allow = rset_exclude(rset_exclude(RSET_GPR, left), dest);
 #if LJ_32
-  if ((as->flags & JIT_F_MIPSXXR2)) {
+  if (as->flags & JIT_F_MIPSXXR2) {
     emit_dta(as, MIPSI_ROTR, dest, RID_TMP, 16);
     emit_dst(as, MIPSI_WSBH, RID_TMP, 0, left);
   } else {
@@ -2135,7 +2135,7 @@ static void asm_bswap(ASMState *as, IRIns *ir)
   }
 #else
   if (irt_is64(ir->t)) {
-    if ((as->flags & JIT_F_MIPSXXR2)) {
+    if (as->flags & JIT_F_MIPSXXR2) {
       emit_dst(as, MIPSI_DSHD, dest, 0, RID_TMP);
       emit_dst(as, MIPSI_DSBH, RID_TMP, 0, left);
     } else {
@@ -2205,7 +2205,7 @@ static void asm_bswap(ASMState *as, IRIns *ir)
       emit_dta(as, MIPSI_DSRL32, tmp3, left, 0);
     }
   } else {
-    if ((as->flags & JIT_F_MIPSXXR2)) {
+    if (as->flags & JIT_F_MIPSXXR2) {
       emit_dta(as, MIPSI_ROTR, dest, RID_TMP, 16);
       emit_dst(as, MIPSI_WSBH, RID_TMP, 0, left);
     } else {
