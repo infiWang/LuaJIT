@@ -571,16 +571,17 @@ static void build_subroutines(BuildCtx *ctx)
   |.if MIPS3
   |  seqz AT, TMP2			// LUA_MULTRET+1 case?
   |  negu AT, AT
-  |  and BASE, BASE, AT
-  |  not AT, AT
-  |  and TMP0, TMP0, AT
+  |  xor BASE, BASE, TMP0
+  |  and BASE, BASE, AT 
   |.elif MIPSR6
   |  selnez TMP0, TMP0, TMP2		// LUA_MULTRET+1 case?
   |  seleqz BASE, BASE, TMP2
   |.endif
   |  b <3
-  |.if MIPS3 or MIPSR6
+  |.if MIPSR6
   |.  or BASE, BASE, TMP0
+  |.elif MIPS3
+  |.  xor BASE, BASE, TMP0		// BASE = TMP2 == 0 ? BASE : TMP0
   |.else
   |.  movn BASE, TMP0, TMP2		// LUA_MULTRET+1 case?
   |.endif
@@ -1349,10 +1350,9 @@ static void build_subroutines(BuildCtx *ctx)
   |  sltiu AT, TMP2, LJ_TISNUM
   |.if MIPS3
   |  negu AT, AT
-  |  and TMP0, TISNUM, AT
-  |  not AT, AT
-  |  and TMP2, TMP2, AT
-  |  or TMP2, TMP0, TMP2
+  |  xor TMP0, TISNUM, TMP2
+  |  and TMP0, TMP0, AT
+  |  xor TMP2, TMP0, TMP2		// TMP2 = (TMP2 < LJ_TISNUM) ? TISNUM : TMP2
   |.elif not MIPSR6
   |  movn TMP2, TISNUM, AT
   |.else
@@ -1606,11 +1606,10 @@ static void build_subroutines(BuildCtx *ctx)
   |.if MIPS3
   |  seqz AT, CARG4
   |  negu AT, AT
+  |  xor CARG2, CARG2, TMP3
   |  and CARG2, CARG2, AT
-  |  not AT, AT
-  |  and TMP3, TMP3, AT
   |  bgtz CARG4, ->fff_fallback		// st > LUA_YIELD?
-  |.  or CARG2, CARG2, TMP3
+  |.  xor CARG2, CARG2, TMP3		// CARG2 = (st == LUA_YIELD) ? CAEG2 : TMP3
   |.elif not MIPSR6
   |  bgtz CARG4, ->fff_fallback		// st > LUA_YIELD?
   |.  movn CARG2, TMP3, CARG4
@@ -1961,10 +1960,9 @@ static void build_subroutines(BuildCtx *ctx)
   |.else // "intins" == "movn"
   |  addiu CRET2, AT, -1
   |.endif
+  |  xor CARG1, CARG1, CARG2
   |  and CARG1, CARG1, CRET2
-  |  not CRET2, CRET2
-  |  and TMP1, CARG2, CRET2
-  |  or CARG1, CARG1, TMP1
+  |  xor CARG1, CARG1, CARG2
   |.elif not MIPSR6
   |  intins CARG1, CARG2, AT
   |.else
@@ -2040,10 +2038,9 @@ static void build_subroutines(BuildCtx *ctx)
   |.if MIPS3
   |  snez CRET2, CRET1
   |  negu CRET2, CRET2
-  |  and AT, CARG1, CRET2
-  |  not CRET2, CRET2
-  |  and CARG1, CARG2, CRET2
-  |  or CARG1, CARG1, AT
+  |  xor CARG1, CARG1, CARG2
+  |  and CARG1, CARG1, CRET2
+  |  xor CARG1, CARG1, CARG2
   |.elif not MIPSR6
   |  movz CARG1, CARG2, CRET1
   |.else
@@ -2166,10 +2163,9 @@ static void build_subroutines(BuildCtx *ctx)
   |   slt TMP3, CARG3, r0
   |.if MIPS3
   |  addiu CRET2, AT, -1
+  |  xor CARG4, CARG4, TMP1
   |  and CARG4, CARG4, CRET2
-  |  not CRET2, CRET2
-  |  and TMP1, TMP1, CRET2
-  |  or CARG4, CARG4, TMP1		// if (end < 0) end += len+1
+  |  xor CARG4, CARG4, TMP1		// if (end < 0) end += len+1
   |.elif not MIPSR6
   |  movn CARG4, TMP1, AT		// if (end < 0) end += len+1
   |.else
@@ -2180,26 +2176,23 @@ static void build_subroutines(BuildCtx *ctx)
   |   addu TMP1, CARG3, TMP0
   |.if MIPS3
   |  addiu CRET2, TMP3, -1
+  |   xor CARG3, CARG3, TMP1
   |   and CARG3, CARG3, CRET2
-  |   not CRET2, CRET2
-  |   and TMP1, TMP1, CRET2
-  |   or CARG3, TMP1, CARG3		// if (start < 0) start += len+1
+  |   xor CARG3, CARG3, TMP1		// if (start < 0) start += len+1
   |   li TMP2, 1
   |  slt AT, CARG4, r0
   |   slt TMP3, r0, CARG3
   |  addiu CRET2, AT, -1
   |   negu CRET1, TMP3
   |  and CARG4, CARG4, CRET2		// if (end < 0) end = 0
+  |   xor CARG3, CARG3, TMP2
   |   and CARG3, CARG3, CRET1
-  |   not CRET1, CRET1
-  |   and TMP2, TMP2, CRET1
-  |   or CARG3, TMP2, CARG3		// if (start < 1) start = 1
+  |   xor CARG3, CARG3, TMP2		// if (start < 1) start = 1
   |  slt AT, CARG2, CARG4
   |  addiu CRET2, AT, -1
+  |  xor CARG4, CARG4, CARG2
   |  and CARG4, CARG4, CRET2
-  |  not CRET2, CRET2
-  |  and CARG2, CARG2, CRET2
-  |  or CARG4, CARG2, CARG4		// if (end > len) end = len
+  |  xor CARG4, CARG4, CARG2		// if (end > len) end = len
   |.elif not MIPSR6
   |   movn CARG3, TMP1, TMP3		// if (start < 0) start += len+1
   |   li TMP2, 1
@@ -2313,10 +2306,9 @@ static void build_subroutines(BuildCtx *ctx)
   |  dsubu TMP0, r0, CRET1
   |.if MIPS3
   |  addiu CRET2, AT, -1
+  |  xor CRET1, CRET1, TMP0
   |  and CRET1, CRET1, CRET2
-  |  not CRET2, CRET2
-  |  and TMP0, TMP0, CRET2
-  |  or CRET1, CRET1, TMP0
+  |  xot CRET1, CRET1, TMP0
   |  zextw_a CRET1, CRET1
   |.elif not MIPSR6
   |  movn CRET1, TMP0, AT
@@ -2368,10 +2360,9 @@ static void build_subroutines(BuildCtx *ctx)
   |  dsubu CARG1, r0, CRET1
   |.if MIPS3
   |  addiu AT, AT, -1
+  |  xor CRET1, CRET1, CARG1
   |  and CRET1, CRET1, AT
-  |  not AT, AT
-  |  and CARG1, CARG1, AT
-  |  or CRET1, CRET1, CARG1
+  |  xor CRET1, CRET1, CARG1
   |.elif not MIPSR6
   |  movn CRET1, CARG1, AT
   |.else
@@ -2386,11 +2377,10 @@ static void build_subroutines(BuildCtx *ctx)
   |  xor AT, CRET1, AT		// Range check.
   |.if MIPS3
   |  negu TMP0, CRET2
+  |  xor CRET2, CRET2, AT
   |  and CRET2, CRET2, TMP0
-  |  not TMP0, TMP0
-  |  and AT, AT, TMP0
   |  jr ra
-  |.  or CRET2, CRET2, AT
+  |.  xor CRET2, CRET2, AT
   |.elif not MIPSR6
   |  jr ra
   |.  movz CRET2, AT, CRET2
@@ -3290,11 +3280,10 @@ static void build_subroutines(BuildCtx *ctx)
   |  move CRET1, CARG1
   |.if MIPS3
   |  negu CRET2, TMP0
+  |  xor CRET1, CRET1, CARG2
   |  and CRET1, CRET1, CRET2
-  |  not CRET2, CRET2
-  |  and TMP0, CARG2, CRET2
   |  jr ra
-  |.  or CRET1, CRET1, TMP0
+  |.  xor CRET1, CRET1, CARG2
   |.elif not MIPSR6
   |  jr ra
   |.  movz CRET1, CARG2, TMP0
@@ -4710,10 +4699,9 @@ static void build_ins(BuildCtx *ctx, BCOp op, int defop)
       |.if MIPS3
       |  snez CARG1, AT
       |  negu CARG1, CARG1
+      |  xor CARG2, CARG2, TMP0
       |  and CARG2, CARG2, CARG1
-      |  not CARG1, CARG1
-      |  and TMP0, TMP0, CARG1
-      |  or CARG2, CARG2, TMP0
+      |  xor CARG2, CARG2, TMP0
       |.elif not MIPSR6
       |  movz CARG2, TMP0, AT
       |.else
@@ -5640,10 +5628,9 @@ static void build_ins(BuildCtx *ctx, BCOp op, int defop)
       |  slt TMP1, CARG3, CARG2
       |.if MIPS3
       |  negu TMP0, AT
+      |  xor TMP1, TMP1, CRET1
       |  and TMP1, TMP1, TMP0
-      |  not TMP0, TMP0
-      |  and CRET1, CRET1, TMP0
-      |  or CRET1, TMP1, CRET1
+      |  xor CRET1, TMP1, CRET1
       |.elif not MIPSR6
       |  movn CRET1, TMP1, AT
       |.else
@@ -5668,10 +5655,9 @@ static void build_ins(BuildCtx *ctx, BCOp op, int defop)
       |   slt TMP0, TMP0, r0		// ((y^a) & (y^b)) < 0: overflow.
       |.if MIPS3
       |  negu TMP3, AT
+      |  xor TMP1, TMP1, CRET1
       |  and TMP1, TMP1, TMP3
-      |  not TMP3, TMP3
-      |  and CRET1, CRET1, TMP3
-      |  or CRET1, TMP1, CRET1
+      |  xor CRET1, TMP1, CRET1
       |.elif not MIPSR6
       |  movn CRET1, TMP1, AT
       |.else
@@ -5739,13 +5725,13 @@ static void build_ins(BuildCtx *ctx, BCOp op, int defop)
       |  c.ole.d f0, f2
       |  addiu CRET2, TMP3, -1
       |  bc1f >6
-      |  li CRET1, 1
+      |. li CRET1, 1
       |  move CRET1, r0
       |6:
       |  c.ole.d f2, f0
       |  and CRET1, CRET1, CRET2
       |  bc1f >7
-      |  not CRET2, CRET2
+      |. not CRET2, CRET2
       |  move AT, r0
       |7:
       |  and AT, AT, CRET2 
@@ -5778,14 +5764,14 @@ static void build_ins(BuildCtx *ctx, BCOp op, int defop)
       |  c.ole.d f0, f2
       |   addiu CRET2, TMP3, -1
       |  bc1f >6
-      |  li CRET1, 1
+      |. li CRET1, 1
       |  move CRET1, r0
       |6:
       |  and CRET1, CRET1, CRET2
       |  c.ole.d f2, f0
       |  not CRET2, CRET2
       |  bc1f >7
-      |  li AT, 1
+      |. li AT, 1
       |  move AT, r0
       |7:
       |  and AT, AT, CRET2
@@ -5998,13 +5984,12 @@ static void build_ins(BuildCtx *ctx, BCOp op, int defop)
     |  move CARG1, TMP0
     |.if MIPS3
     |  negu CRET2, AT
+    |  xor TMP0, TMP0, TISNIL
+    |  xor TMP3, TISNIL, CARG1
     |  and TMP0, TMP0, CRET2
-    |  and TMP3, TISNIL, CRET2
-    |  not CRET2, CRET2
-    |  and CARG1, CARG1, CRET2
-    |  and CRET1, TISNIL, CRET2
-    |  or TMP0, TMP0, CRET1
-    |  or CARG1, CARG1, TMP3
+    |  and TMP3, TMP3, CRET2
+    |  xor TMP0, TMP0, TISNIL
+    |  xor CARG1, TMP3, CARG1
     |.elif not MIPSR6
     |  movz TMP0, TISNIL, AT		// Clear missing parameters.
     |  movn CARG1, TISNIL, AT		// Clear old fixarg slot (help the GC).
