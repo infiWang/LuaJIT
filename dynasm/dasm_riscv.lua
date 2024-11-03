@@ -272,10 +272,6 @@ local map_op = {}
 
 local map_op_rv32imafd = {
 
-  -- DASM pseudo-instrs
-  empty_0 = "ffffffff",
-  call_1 = "7fffffffJ",
-
   -- RV32I
   lui_2 = "00000037DU",
   auipc_2 = "00000017DA",

@@ -438,9 +438,11 @@
 |  auipc CFUNCADDR, extern %pcrel_hi(func)
 |  jalr CFUNCADDR, extern %pcrel_lo(lj_ .. curfunc .. _pcrel_ .. func)
 |.endmacro
-|.macro call_extern, func
-|  call extern func
-|  empty
+|.macro call_extern, curfunc, func
+|->curfunc .. _got_pcrel_ .. func:
+|  auipc CFUNCADDR, extern %got_pcrel_hi(func)
+|  ld CFUNCADDR, extern %pcrel_lo(lj_ .. curfunc .. _got_pcrel_ .. func)(CFUNCADDR)
+|  jalr CFUNCADDR
 |.endmacro
 |
 |// Set current VM state. Uses TMP0.
@@ -1732,13 +1734,13 @@ static void build_subroutines(BuildCtx *ctx)
   |
   |.macro math_extern, func
   |  .ffunc_n math_ .. func
-  |  call_extern func
+  |  call_extern ff_math_extern, func
   |  j ->fff_resn
   |.endmacro
   |
   |.macro math_extern2, func
   |  .ffunc_nn math_ .. func
-  |  call_extern func
+  |  call_extern ff_math_extern2, func
   |  j ->fff_resn
   |.endmacro
   |
@@ -1755,7 +1757,7 @@ static void build_subroutines(BuildCtx *ctx)
   |   fld FARG1, 0(BASE)
   |  bxne NARGS8:RC, TMP1, ->fff_fallback		// Need exactly 1 argument.
   |  checknum CARG1, ->fff_fallback
-  |  call_extern log
+  |  call_extern ff_math_log, log
   |  j ->fff_resn
   |
   |  math_extern log10
@@ -1778,13 +1780,13 @@ static void build_subroutines(BuildCtx *ctx)
   |  checkint CARG2, ->fff_fallback
   |   fld FARG1, 0(BASE)
   |   lw CARG1, 8(BASE)
-  |  call_extern ldexp			// (double x, int exp)
+  |  call_extern ff_math_ldexp, ldexp			// (double x, int exp)
   |  j ->fff_resn
   |
   |.ffunc_n math_frexp
   |   ld PC, FRAME_PC(BASE)
   |  addi CARG1, GL, offsetof(global_State, tmptv)
-  |  call_extern frexp
+  |  call_extern ff_math_frexp, frexp
   |    lw TMP1, GL->tmptv
   |   fcvt.d.w FARG2, TMP1
   |  fsd FRET1, -16(BASE)
@@ -1795,7 +1797,7 @@ static void build_subroutines(BuildCtx *ctx)
   |.ffunc_n math_modf
   |   addi CARG1, BASE, -16
   |   ld PC, FRAME_PC(BASE)
-  |  call_extern modf
+  |  call_extern ff_math_modf, modf
   |  fsd FRET1, -8(BASE)
   |   li RD, (2+1)*8
   |  j ->fff_res
@@ -3353,7 +3355,7 @@ static void build_ins(BuildCtx *ctx, BCOp op, int defop)
     |  bxeqz TMP0, ->vmeta_arith
     |  fld FARG1, 0(RB)
     |  fld FARG2, 0(RC)
-    |  call_extern pow
+    |  call_extern BC_POW, pow
     |  ins_next1
     |  fsd FRET1, 0(RA)
     |  ins_next2
