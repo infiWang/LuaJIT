@@ -668,7 +668,7 @@ static void build_subroutines(BuildCtx *ctx)
   |    fmv.d.x TOBIT, TMP3
   |  addi RA, BASE, -8		// Results start at BASE-8.
   |  addxi DISPATCH, GL, GG_G2DISP
-  |  sd TMP1, 0(RA)			// Prepend false to error message.
+  |  sd TMP1, -8(BASE)			// Prepend false to error message.
   |    st_vmstate
   |  li RD, 16			// 2 results: false + error message.
   |  j ->vm_returnc
@@ -1240,7 +1240,7 @@ static void build_subroutines(BuildCtx *ctx)
   |  addiw RD, NARGS8:RC, 8		// Compute (nresults+1)*8.
   |  addi TMP1, BASE, 8
   |  add TMP2, RA, RD
-  |  sd CARG1, 0(RA)
+  |  sd CARG1, -16(BASE)
   |  bne BASE, TMP2, >1
   |  j ->fff_res		// Done if exactly 1 argument.
   |1:
@@ -1375,7 +1375,7 @@ static void build_subroutines(BuildCtx *ctx)
   |  call_intern ff_tostring, lj_strfmt_number	// (lua_State *L, cTValue *o)
   |  // Returns GCstr *.
   |  li TMP1, LJ_TSTR
-  |//  ld BASE, L->base
+  |  ld BASE, L->base
   |  settp CARG1, TMP1
   |  j ->fff_restv
   |
@@ -1390,7 +1390,6 @@ static void build_subroutines(BuildCtx *ctx)
   |  addi CARG3, BASE, -16
   |  call_intern ff_next, lj_tab_next	// (GCtab *t, cTValue *key, TValue *o)
   |  // Returns 1=found, 0=end, -1=error.
-  |//  addi RA, BASE, -16
   |  li RD, (2+1)*8
   |  bxgtz CRET1, ->fff_res		// Found key/value.
   |  mv TMP1, CRET1
@@ -1407,15 +1406,13 @@ static void build_subroutines(BuildCtx *ctx)
 #if LJ_52
   |  ld TAB:TMP2, TAB:TMP1->metatable
   |  ld TMP0, CFUNC:RB->upvalue[0]
-  |  addi RA, BASE, -16
   |  bxnez TAB:TMP2, ->fff_fallback
 #else
   |  ld TMP0, CFUNC:RB->upvalue[0]
-  |  addi RA, BASE, -16
 #endif
   |  sd TISNIL, 0(BASE)
   |   sd CARG1, -8(BASE)
-  |    sd TMP0, 0(RA)
+  |    sd TMP0, -16(BASE)
   |  li RD, (3+1)*8
   |  j ->fff_res
   |
@@ -1428,10 +1425,9 @@ static void build_subroutines(BuildCtx *ctx)
   |  sext.w TMP2, CARG2
   |  addiw TMP2, TMP2, 1
   |  sltu TMP3, TMP2, TMP0
-  |    addi RA, BASE, -16
   |   zext.w TMP0, TMP2
   |   settp_b TMP0, TISNUM
-  |  sd TMP0, 0(RA)
+  |  sd TMP0, -16(BASE)
   |  beqz TMP3, >2			// Not in array part?
   |  slli TMP3, TMP2, 3
   |  add TMP3, TMP1, TMP3
@@ -1461,14 +1457,13 @@ static void build_subroutines(BuildCtx *ctx)
   |  ld TAB:TMP2, TAB:TMP1->metatable
 #endif
   |  ld CFUNC:TMP0, CFUNC:RB->upvalue[0]
-  |  addi RA, BASE, -16
 #if LJ_52
   |  bxnez TAB:TMP2, ->fff_fallback
 #endif
   |  slli TMP1, TISNUM, 47
   |  sd CARG1, -8(BASE)
   |   sd TMP1, 0(BASE)
-  |    sd CFUNC:TMP0, 0(RA)
+  |    sd CFUNC:TMP0, -16(BASE)
   |  li RD, (3+1)*8
   |  j ->fff_res
   |
@@ -1961,8 +1956,7 @@ static void build_subroutines(BuildCtx *ctx)
   |  sd TMP0, SBUF:CARG1->w
   |   sd PC, SAVE_PC(sp)
   |  call_intern ff_string_ .. name, lj_buf_putstr_ .. name
-  |//  mv SBUF:CARG1, SBUF:CRET1
-  |  call_intern ff_string_ .. name, lj_buf_tostr
+  |  call_intern ff_string_ .. name, lj_buf_tostr	// CARG1 = CRET1
   |   ld BASE, L->base
   |  j ->fff_resstr
   |.endmacro
