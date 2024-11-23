@@ -1473,10 +1473,11 @@ static void build_subroutines(BuildCtx *ctx)
   |  ld TMP1, L->maxstack
   |  add TMP2, BASE, NARGS8:RC
   |  bxltu TMP1, TMP2, ->fff_fallback
-  |  addi NARGS8:RC, NARGS8:RC, -8
+  |  addi NARGS8:TMP0, NARGS8:RC, -8
   |   lbu TMP3, GL->hookmask
   |   mv TMP2, BASE
-  |  bxltz NARGS8:RC, ->fff_fallback
+  |  bxltz NARGS8:TMP0, ->fff_fallback
+  |  mv NARGS8:RC, NARGS8:TMP0
   |   addi BASE, BASE, 16
   |  // Remember active hook before pcall.
   |  srliw TMP3, TMP3, HOOK_ACTIVE_SHIFT
