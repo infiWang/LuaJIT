@@ -1548,9 +1548,22 @@ static void asm_min_max(ASMState *as, IRIns *ir, int ismax)
 {
   if (irt_isnum(ir->t)) {
     Reg dest = ra_dest(as, ir, RSET_FPR);
+    MCLabel l_ret_left, l_end;
     Reg right, left = ra_alloc2(as, ir, RSET_FPR);
     right = (left >> 8); left &= 255;
-    emit_ds1s2(as, ismax ? RISCVI_FMAX_D : RISCVI_FMIN_D, dest, left, right);
+    l_end = emit_label(as);
+
+    if (dest != left)
+      emit_ds1s2(as, RISCVI_FMV_D, dest, left, left);
+    l_ret_left = emit_label(as);
+
+    emit_jmp(as, l_end);
+    if (dest != right)
+      emit_ds1s2(as, RISCVI_FMV_D, dest, right, right);
+
+    emit_branch(as, RISCVI_BNE, RID_TMP, RID_ZERO, l_ret_left, 0);
+    emit_ds1s2(as, RISCVI_FLT_D, RID_TMP, ismax ? right : left,
+	       ismax ? left : right);
   } else {
     Reg dest = ra_dest(as, ir, RSET_GPR);
     Reg left = ra_hintalloc(as, ir->op1, dest, RSET_GPR);

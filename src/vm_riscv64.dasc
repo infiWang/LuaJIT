@@ -1798,7 +1798,7 @@ static void build_subroutines(BuildCtx *ctx)
   |   li RD, (2+1)*8
   |  j ->fff_res
   |
-  |.macro math_minmax, name, ismax, fpins
+  |.macro math_minmax, name, ismax
   |  .ffunc_1 name
   |  add RB, BASE, NARGS8:RC
   |   addi RA, BASE, 8
@@ -1837,7 +1837,14 @@ static void build_subroutines(BuildCtx *ctx)
   |   bxgeu RA, RB, ->fff_resn
   |  checknum CARG2, >7
   |6:
-  |  fpins FARG1, FARG1, FARG2
+  |.if ismax
+  |  flt.d TMP0, FARG2, FARG1
+  |.else // min
+  |  flt.d TMP0, FARG1, FARG2
+  |.endif
+  |  bnez TMP0, >8 // skip swap
+  |  fmv.d FARG1, FARG2
+  |8:
   |   addi RA, RA, 8
   |  j <5
   |7:  // Convert integer to number and continue above.
@@ -1846,8 +1853,8 @@ static void build_subroutines(BuildCtx *ctx)
   |  j <6
   |.endmacro
   |
-  |  math_minmax math_min, 0, fmin.d
-  |  math_minmax math_max, 1, fmax.d
+  |  math_minmax math_min, 0
+  |  math_minmax math_max, 1
   |
   |//-- String library -----------------------------------------------------
   |
