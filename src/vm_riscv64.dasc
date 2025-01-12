@@ -1662,20 +1662,28 @@ static void build_subroutines(BuildCtx *ctx)
   |
   |//-- Math library -------------------------------------------------------
   |
-  |.macro math_round, func
+  |.macro math_round, func, rm
   |->ff_math_ .. func:
   |  ld CARG1, 0(BASE)
   |   gettp TMP0, CARG1
   |  bxeqz NARGS8:RC, ->fff_fallback
-  |  bxeq TMP0, TISNUM, ->fff_restv
-  |   fld FARG1, 0(BASE)
-  |  bxgeu TMP0, TISNUM, ->fff_fallback
-  |  jal ->vm_ .. func
+  |   fmv.d.x FARG1, CARG1
+  |    bxeq TMP0, TISNUM, ->fff_restv
+  |  lui TMP1, 0x43300		// Hiword of 2^52 (double).
+  |    bxgeu TMP0, TISNUM, ->fff_fallback
+  |  slli TMP1, TMP1, 32
+  |  fmv.d.x FTMP1, TMP1
+  |  fabs.d FTMP0, FARG1
+  |  flt.d TMP2, FTMP0, FTMP1
+  |  bxeqz TMP2, ->fff_resn
+  |  fcvt.l.d TMP3, FARG1, rm
+  |  fcvt.d.l FTMP2, TMP3
+  |  fsgnj.d FRET1, FTMP2, FARG1
   |  j ->fff_resn
   |.endmacro
   |
-  |  math_round floor
-  |  math_round ceil
+  |  math_round floor, rdn
+  |  math_round ceil, rup
   |
   |.ffunc_1 math_abs
   |  gettp CARG2, CARG1
@@ -2481,79 +2489,29 @@ static void build_subroutines(BuildCtx *ctx)
   |
   |
   |// Hard-float round to integer.
-  |// Modifies TMP0, TMP1, FARG1, FARG5, FTMP1, FTMP3, FTMP4
-  |.macro vm_round_hf, func
+  |// Modifies TMP0, FARG1, FARG4, FARG5
+  |.macro vm_round, rm
   |  lui TMP0, 0x43300		// Hiword of 2^52 (double).
   |  slli TMP0, TMP0, 32
   |  fmv.d.x FARG5, TMP0
-  |  fabs.d FTMP4, FARG1		// |x|
-  |   fmv.x.d TMP1, FARG1
-  |  flt.d TMP0, FTMP4, FARG5
-  |  fadd.d FTMP3, FTMP4, FARG5		// (|x| + 2^52) - 2^52
-  |  fsub.d FTMP3, FTMP3, FARG5
-  |  beqz TMP0, >5			// Truncate only if |x| < 2^52.
-  |  sltz TMP1, TMP1
-  |.if "func" == "ceil"
-  |  lui TMP0, 0xbff00	// Hiword of -1 (double).
-  |.else
-  |  lui TMP0, 0x3ff00	// Hiword of +1 (double).
-  |.endif
-  |.if "func" == "trunc"
-  |  slli TMP0, TMP0, 32
-  |  fmv.d.x FARG5, TMP0
-  |  flt.d TMP0, FTMP4, FRET1	// |x| < result?
-  |  fsub.d FTMP4, FTMP3, FARG5
+  |   fabs.d FARG4, FARG1
+  |  flt.d TMP0, FARG4, FARG5
   |  beqz TMP0, >1
-  |  fmv.d FTMP1, FTMP4
-  |  j >2
+  |  fcvt.l.d TMP0, FARG1, rm
+  |  fcvt.d.l FARG5, TMP0
+  |  fsgnj.d FRET1, FARG5, FARG1
   |1:
-  |  fmv.d FTMP1, FTMP3
-  |2:
-  |  fneg.d FTMP4, FTMP1
-  |  beqz TMP1, >3
-  |  fmv.d FTMP3, FTMP4
-  |  j >4
-  |3:
-  |  fmv.d FTMP3, FTMP1
-  |4:
-  |  ret
-  |.else
-  |  fneg.d FTMP4, FTMP3
-  |  slli TMP0, TMP0, 32
-  |  fmv.d.x FARG5, TMP0
-  |  beqz TMP1, >1
-  |  fmv.d FTMP1, FTMP4
-  |  j >2
-  |1:
-  |  fmv.d FTMP1, FTMP3
-  |2:
-  |.if "func" == "ceil"
-  |  flt.d TMP0, FTMP1, FARG1	// x > result?
-  |.else
-  |  flt.d TMP0, FARG1, FTMP1	// x < result?
-  |.endif
-  |  beqz TMP0, >3
-  |  fsub.d FTMP4, FTMP1, FARG5		// If yes, subtract +-1.
-  |  fmv.d FRET1, FTMP4
-  |  j >4
-  |3:
-  |  fmv.d FRET1, FTMP1
-  |4:
-  |  ret
-  |.endif
-  |5:
-  |  fmv.d FTMP3, FARG1
   |  ret
   |.endmacro
   |
   |
   |->vm_floor:
-  |  vm_round_hf floor
+  |  vm_round rdn
   |->vm_ceil:
-  |  vm_round_hf ceil
+  |  vm_round rup
   |->vm_trunc:
   |.if JIT
-  |  vm_round_hf trunc
+  |  vm_round rtz
   |.endif
   |
   |
