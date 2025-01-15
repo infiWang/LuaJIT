@@ -436,33 +436,57 @@ static void emit_branch(ASMState *as, RISCVIns riscvi, Reg rs1, Reg rs2, MCode *
 {
   MCode *p = as->mcp;
   ptrdiff_t delta = (char *)target - (char *)(p - 1);
-  // lj_assertA(((delta + 0x10000) >> 13) == 0, "branch target out of range"); /* B */
-  lj_assertA(((delta + 0x100000) >> 21) == 0, "branch target out of range"); /* ^B+J */
-  if (checki13(delta) && !jump) {
-    *--p = riscvi | RISCVF_S1(rs1) | RISCVF_S2(rs2) | RISCVF_IMMB(delta);
-    *--p = RISCVI_NOP;
-  } else {
-    *--p = RISCVI_JAL | RISCVF_IMMJ(delta); /* Poorman's trampoline */
-    *--p = (riscvi^0x00001000) | RISCVF_S1(rs1) | RISCVF_S2(rs2) | RISCVF_IMMB(8);
+  switch (jump) {
+    case -1:
+      lj_assertA(((delta + 0x10000) >> 13) == 0, "branch target out of range"); /* B */
+      *--p = riscvi | RISCVF_S1(rs1) | RISCVF_S2(rs2) | RISCVF_IMMB(delta);
+      break;
+    case 0: case 1:
+      lj_assertA(((delta + 0x100000) >> 21) == 0, "branch target out of range"); /* ^B+J */
+      if (checki13(delta) && !jump) {
+  *--p = riscvi | RISCVF_S1(rs1) | RISCVF_S2(rs2) | RISCVF_IMMB(delta);
+  *--p = RISCVI_NOP;
+      } else {
+  *--p = RISCVI_JAL | RISCVF_IMMJ(delta); /* Poorman's trampoline */
+  *--p = (riscvi^0x00001000) | RISCVF_S1(rs1) | RISCVF_S2(rs2) | RISCVF_IMMB(8);
+      }
+      break;
+    default:
+      lj_assertA(0, "invalid jump type");
+      break;
   }
   as->mcp = p;
 }
 
-static void emit_jmp(ASMState *as, MCode *target)
+static void emit_jump(ASMState *as, MCode *target, int jump)
 {
   MCode *p = as->mcp;
-  ptrdiff_t delta = (char *)target - (char *)(p - 2);
-  // lj_assertA(((delta + 0x100000) >> 21) == 0, "jump target out of range"); /* J */
-  lj_assertA(checki32(delta), "jump target out of range"); /* AUIPC+JALR */
-  if (checki21(delta)) {
-    *--p = RISCVI_NOP;
-    *--p = RISCVI_JAL | RISCVF_IMMJ(delta);
-  } else {
-    *--p = RISCVI_JALR | RISCVF_S1(RID_TMP) | RISCVF_IMMI(RISCVF_LO(delta));
-    *--p = RISCVI_AUIPC | RISCVF_D(RID_TMP) | RISCVF_IMMU(RISCVF_HI(delta));
+  ptrdiff_t delta;
+  switch(jump) {
+    case -1:
+      delta = (char *)target - (char *)(p - 1);
+      lj_assertA(((delta + 0x100000) >> 21) == 0, "jump target out of range"); /* J */
+      *--p = RISCVI_JAL | RISCVF_IMMJ(delta);
+      break;
+    case 0: case 1:
+      delta = (char *)target - (char *)(p - 2);
+      lj_assertA(checki32auipc(delta), "jump target out of range"); /* AUIPC+JALR */
+      if (checki21(delta) && !jump) {
+  *--p = RISCVI_NOP;
+  *--p = RISCVI_JAL | RISCVF_IMMJ(delta);
+      } else {
+  *--p = RISCVI_JALR | RISCVF_S1(RID_TMP) | RISCVF_IMMI(RISCVF_LO(delta));
+  *--p = RISCVI_AUIPC | RISCVF_D(RID_TMP) | RISCVF_IMMU(RISCVF_HI(delta));
+      }
+      break;
+    default:
+      lj_assertA(0, "invalid jump type");
+      break;
   }
   as->mcp = p;
 }
+
+#define emit_jmp(as, target)	emit_jump(as, target, 0)
 
 #define emit_mv(as, dst, src) \
   emit_ds(as, RISCVI_MV, (dst), (src))

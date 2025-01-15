@@ -719,7 +719,7 @@ static void asm_href(ASMState *as, IRIns *ir, IROp merge)
   if (irt_isnum(kt)) {
     emit_branch(as, RISCVI_BNE, tmp1, RID_ZERO, l_end, is_lend_exit);
     emit_ds1s2(as, RISCVI_FEQ_D, tmp1, tmpnum, key);
-    emit_branch(as, RISCVI_BEQ, tmp1, RID_ZERO, l_next, 0);
+    emit_branch(as, RISCVI_BEQ, tmp1, RID_ZERO, l_next, -1);
     emit_dsi(as, RISCVI_SLTIU, tmp1, tmp1, ((int32_t)LJ_TISNUM));
     emit_dsshamt(as, RISCVI_SRAI, tmp1, tmp1, 47);
     emit_ds(as, RISCVI_FMV_D_X, tmpnum, tmp1);
@@ -1168,7 +1168,7 @@ static void asm_tbar(ASMState *as, IRIns *ir)
   emit_lso(as, RISCVI_SB, mark, tab, (int32_t)offsetof(GCtab, marked));
   emit_setgl(as, tab, gc.grayagain);	// make tab gray again
   emit_getgl(as, link, gc.grayagain);
-  emit_branch(as, RISCVI_BEQ, RID_TMP, RID_ZERO, l_end, 0);	// black: not jump
+  emit_branch(as, RISCVI_BEQ, RID_TMP, RID_ZERO, l_end, -1);	// black: not jump
   emit_ds1s2(as, RISCVI_XOR, mark, mark, RID_TMP);	// mark=0: gray
   emit_dsi(as, RISCVI_ANDI, RID_TMP, mark, LJ_GC_BLACK);
   emit_lso(as, RISCVI_LBU, mark, tab, ((int32_t)offsetof(GCtab, marked)));
@@ -1190,8 +1190,8 @@ static void asm_obar(ASMState *as, IRIns *ir)
   emit_ds(as, RISCVI_MV, ra_releasetmp(as, ASMREF_TMP1), RID_GL);
   obj = IR(ir->op1)->r;
   tmp = ra_scratch(as, rset_exclude(RSET_GPR, obj));
-  emit_branch(as, RISCVI_BEQ, tmp, RID_ZERO, l_end, 0);
-  emit_branch(as, RISCVI_BEQ, RID_TMP, RID_ZERO, l_end, 0);	// black: jump
+  emit_branch(as, RISCVI_BEQ, tmp, RID_ZERO, l_end, -1);
+  emit_branch(as, RISCVI_BEQ, RID_TMP, RID_ZERO, l_end, -1);	// black: jump
   emit_dsi(as, RISCVI_ANDI, tmp, tmp, LJ_GC_BLACK);
   emit_dsi(as, RISCVI_ANDI, RID_TMP, RID_TMP, LJ_GC_WHITES);
   val = ra_alloc1(as, ir->op2, rset_exclude(RSET_GPR, obj));
@@ -1246,7 +1246,7 @@ static void asm_fpround(ASMState *as, IRIns *ir, RISCVIns riscvi)
     emit_ds(as, RISCVI_FCVT_D_L, ftmp, RID_TMP);
   }
   emit_ds(as, riscvi, RID_TMP, left);
-  emit_branch(as, RISCVI_BLT, RID_ZERO, RID_TMP, l_end, 0);
+  emit_branch(as, RISCVI_BLT, RID_ZERO, RID_TMP, l_end, -1);
   emit_dsi(as, RISCVI_ADDI, RID_TMP, RID_TMP, -1075);
   emit_dsi(as, RISCVI_ANDI, RID_TMP, RID_TMP, 0x7ff);
   emit_dsi(as, RISCVI_SRLI, RID_TMP, RID_TMP, 52);
@@ -1577,11 +1577,12 @@ static void asm_min_max(ASMState *as, IRIns *ir, int ismax)
       emit_ds1s2(as, RISCVI_FMV_D, dest, left, left);
     l_ret_left = emit_label(as);
 
-    emit_jmp(as, l_end);
+    if (dest != left)
+      emit_jump(as, l_end, -1);
     if (dest != right)
       emit_ds1s2(as, RISCVI_FMV_D, dest, right, right);
 
-    emit_branch(as, RISCVI_BNE, RID_TMP, RID_ZERO, l_ret_left, 0);
+    emit_branch(as, RISCVI_BNE, RID_TMP, RID_ZERO, l_ret_left, -1);
     emit_ds1s2(as, RISCVI_FLT_D, RID_TMP, ismax ? right : left,
 	       ismax ? left : right);
   } else {
@@ -1845,7 +1846,7 @@ static void asm_gc_check(ASMState *as)
   tmp = ra_releasetmp(as, ASMREF_TMP2);
   emit_loadi(as, tmp, as->gcsteps);
   /* Jump around GC step if GC total < GC threshold. */
-  emit_branch(as, RISCVI_BLTU, RID_TMP, tmp, l_end, 0);
+  emit_branch(as, RISCVI_BLTU, RID_TMP, tmp, l_end, -1);
   emit_getgl(as, tmp, gc.threshold);
   emit_getgl(as, RID_TMP, gc.total);
   as->gcsteps = 0;
