@@ -123,22 +123,22 @@ local map_fstore = {
 
 local map_fmadd = {
   shift = 25, mask = 3,
-  [0] = "fmadd.sFGgH", "fmadd.dFGgH"
+  [0] = "fmadd.sFGgHo", "fmadd.dFGgHo"
 }
 
 local map_fmsub = {
   shift = 25, mask = 3,
-  [0] = "fmsub.sFGgH", "fmsub.dFGgH"
+  [0] = "fmsub.sFGgHo", "fmsub.dFGgHo"
 }
 
 local map_fnmsub = {
   shift = 25, mask = 3,
-  [0] = "fnmsub.sFGgH", "fnmsub.dFGgH"
+  [0] = "fnmsub.sFGgHo", "fnmsub.dFGgHo"
 }
 
 local map_fnmadd = {
   shift = 25, mask = 3,
-  [0] = "fnmadd.sFGgH", "fnmadd.dFGgH"
+  [0] = "fnmadd.sFGgHo", "fnmadd.dFGgHo"
 }
 
 local map_fsgnjs = {
@@ -153,50 +153,78 @@ local map_fsgnjd = {
 
 local map_fms = {
   shift = 12, mask = 7,
-  [0] = "fmin.sFGg", "fmax.sFGg"
+  [0] = "fmin.sFGg", "fmax.sFGg", "fminm.sFGg", "fmaxm.sFGg"
 }
 
 local map_fmd = {
   shift = 12, mask = 7,
-  [0] = "fmin.dFGg", "fmax.dFGg"
+  [0] = "fmin.dFGg", "fmax.dFGg", "fminm.dFGg", "fmaxm.dFGg"
 }
 
 local map_fcomps = {
   shift = 12, mask = 7,
-  [0] = "fle.sDGg", "flt.sDGg", "feq.sDGg"
+  [0] = "fle.sDGg", "flt.sDGg", "feq.sDGg",
+  [4] = "fleq.sDGg", "fltq.sDGg"
 }
 
 local map_fcompd = {
   shift = 12, mask = 7,
-  [0] = "fle.dDGg", "flt.dDGg", "feq.dDGg"
+  [0] = "fle.dDGg", "flt.dDGg", "feq.dDGg",
+  [4] = "fleq.dDGg", "fltq.dDGg"
 }
 
 local map_fcvtwls = {
   shift = 20, mask = 31,
-  [0] = "fcvt.w.sDG", "fcvt.wu.sDG", "fcvt.l.sDG", "fcvt.lu.sDG"
+  [0] = "fcvt.w.sDGo", "fcvt.wu.sDGo", "fcvt.l.sDGo", "fcvt.lu.sDGo"
 }
 
 local map_fcvtwld = {
   shift = 20, mask = 31,
-  [0] = "fcvt.w.dDG", "fcvt.wu.dDG", "fcvt.l.dDG", "fcvt.lu.dDG"
+  [0] = "fcvt.w.dDGo", "fcvt.wu.dDGo", "fcvt.l.dDGo", "fcvt.lu.dDGo",
+  [8] = {
+    shift = 12, mask = 7,
+    [1] = "fcvtmodw.dDG"
+  }
 }
 
 local map_fcvts = {
   shift = 20, mask = 31,
-  [0] = "fcvt.s.wFR", "fcvt.s.wuFR", "fcvt.s.lFR", "fcvt.s.luFR"
+  [0] = "fcvt.s.wFRo", "fcvt.s.wuFRo", "fcvt.s.lFRo", "fcvt.s.luFRo"
 }
 
 local map_fcvtd = {
   shift = 20, mask = 31,
-  [0] = "fcvt.d.wFR", "fcvt.d.wuFR", "fcvt.d.lFR", "fcvt.d.luFR"
+  [0] = "fcvt.d.wFRo", "fcvt.d.wuFRo", "fcvt.d.lFRo", "fcvt.d.luFRo"
+}
+
+local map_fcvtsd = {
+  shift = 20, mask = 31,
+  [0] = "fcvt.s.dFGo",
+  [4] = "fround.sFGo", [5] = "froundnx.sFGo"
+}
+
+local map_fcvtds = {
+  shift = 20, mask = 31,
+  [0] = "fcvt.d.sFGo",
+  [4] = "fround.dFGo", [5] = "froundnx.dFGo"
+}
+
+local map_fmvwx = {
+  shift = 20, mask = 31,
+  [0] = "fmv.w.xFR", [1] = "fli.sFy"
+}
+
+local map_fmvdx = {
+  shift = 20, mask = 31,
+  [0] = "fmv.d.xFR", [1] = "fli.dFy"
 }
 
 local map_fext = {
   shift = 25, mask = 127,
-  [0] = "fadd.sFGg", [1] = "fadd.dFGg", [4] = "fsub.sFGg", [5] = "fsub.dFGg",
-  [8] = "fmul.sFGg", [9] = "fmul.dFGg", [12] = "fdiv.sFGg", [13] = "fdiv.dFGg",
+  [0] = "fadd.sFGgo", [1] = "fadd.dFGgo", [4] = "fsub.sFGgo", [5] = "fsub.dFGgo",
+  [8] = "fmul.sFGgo", [9] = "fmul.dFGgo", [12] = "fdiv.sFGgo", [13] = "fdiv.dFGgo",
   [16] = map_fsgnjs, [17] = map_fsgnjd, [20] = map_fms, [21] = map_fmd,
-  [32] = "fcvt.s.dFG", [33] = "fcvt.d.sFG",[44] = "fsqrt.sFG", [45] = "fsqrt.dFG",
+  [32] = map_fcvtsd, [33] = map_fcvtds,[44] = "fsqrt.sFGo", [45] = "fsqrt.dFGo",
   [80] = map_fcomps, [81] = map_fcompd, [96] = map_fcvtwls, [97] = map_fcvtwld,
   [104] = map_fcvts, [105] = map_fcvtd,
   [112] = {
@@ -207,7 +235,7 @@ local map_fext = {
   shift = 12, mask = 7,
     [0] = "fmv.x.dDG", "fclass.dDG"
   },
-  [120] = "fmv.w.xFR", [121] = "fmv.d.xFR"
+  [120] = map_fmvwx, [121] = map_fmvdx
 }
 
 --RV32A, RV64A
@@ -483,6 +511,23 @@ local map_fgpr = {
   "f8", "f9", "f10", "f11", "f12", "f13", "f14", "f15",
   "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
   "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31",
+}
+
+local map_rm = {
+  [0] = "rne", "rtz", "rdn", "rup", "rmm", [7] = "dyn"
+}
+
+local map_fli = {
+  [0] = "-1.0",
+  "min",
+  "0x1p-16", "0x1p-15", "0x1p-8", "0x1p-7",
+  "0.0625", "0.125",
+  "0.25", "0.3125", "0.375", "0.4375",
+  "0.5", "0.625", "0.75", "0.875",
+  "1.0", "1.25", "1.5", "1.75",
+  "2.0", "2.5", "3.0",
+  "4.0", "8.0", "16.0", "128.0", "256.0",
+  "32768.0", "65536.0", "inf", "nan"
 }
 
 ------------------------------------------------------------------------------
@@ -811,6 +856,10 @@ local function disass_ins(ctx)
       local uimm = bor(lshift(0, 31), lshift(part1, 6), lshift(part2, 5),
                        lshift(part3, 2))
       x = format("%d(%s)", uimm, "sp")
+    elseif p == "o" then -- rounding mode
+      x = map_rm[band(rshift(op, 12), 7)]
+    elseif p == "y" then -- fli lut
+      x = map_fli[band(rshift(op, 15), 31)]
     elseif p == "1" then
       local part1 = band(rshift(op, 12), 1) --5
       local part2 = band(rshift(op, 2), 31) --4:0

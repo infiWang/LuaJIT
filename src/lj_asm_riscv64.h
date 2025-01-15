@@ -1226,6 +1226,8 @@ static void asm_fpunary(ASMState *as, IRIns *ir, RISCVIns riscvi)
   Reg dest = ra_dest(as, ir, RSET_FPR);
   Reg left = ra_hintalloc(as, ir->op1, dest, RSET_FPR);
   switch(riscvi) {
+    case RISCVI_FROUND_S_RTZ: case RISCVI_FROUND_S_RDN: case RISCVI_FROUND_S_RUP:
+    case RISCVI_FROUND_D_RTZ: case RISCVI_FROUND_D_RDN: case RISCVI_FROUND_D_RUP:
     case RISCVI_FSQRT_S: case RISCVI_FSQRT_D:
       emit_ds(as, riscvi, dest, left);
       break;
@@ -1244,7 +1246,10 @@ static void asm_fpmath(ASMState *as, IRIns *ir)
 {
   IRFPMathOp fpm = (IRFPMathOp)ir->op2;
   if (fpm <= IRFPM_TRUNC)
-    asm_callround(as, ir, IRCALL_lj_vm_floor + fpm);
+    if (as->flags & JIT_F_RVZfa) {
+      asm_fpunary(as, ir, fpm == IRFPM_FLOOR ? RISCVI_FROUND_D_RDN :
+        fpm == IRFPM_CEIL ? RISCVI_FROUND_D_RUP : RISCVI_FROUND_D_RTZ);
+    } else asm_callround(as, ir, IRCALL_lj_vm_floor + fpm);
   else if (fpm == IRFPM_SQRT)
     asm_fpunary(as, ir, RISCVI_FSQRT_D);
   else

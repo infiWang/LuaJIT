@@ -385,6 +385,25 @@ static void emit_loadk64(ASMState *as, Reg r, IRIns *ir)
   const uint64_t *k = &ir_k64(ir)->u64;
   Reg r64 = r;
   if (rset_test(RSET_FPR, r)) {
+    if (as->flags & JIT_F_RVZfa) {
+      uint8_t sign = (*k >> 63) & 1;
+      uint16_t k_hi16 = (*k >> 48) & 0xffff;
+      uint16_t mk_hi16 = k_hi16 & 0x7fff;
+      if (k_hi16) {
+  if (riscv_fli_map_hi16[0] == k_hi16) {
+    emit_ds(as, RISCVI_FLI_D, r, 0);
+    return;
+  }
+  for (int i = 1; i < 32; i++) {
+    if (riscv_fli_map_hi16[i] == mk_hi16) {
+      if (sign)
+        emit_ds1s2(as, RISCVI_FNEG_D, r, r, r);
+      emit_ds(as, RISCVI_FLI_D, r, i);
+      return;
+    }
+  }
+      }
+    }
     r64 = RID_TMP;
     emit_ds(as, RISCVI_FMV_D_X, r, r64);
   }

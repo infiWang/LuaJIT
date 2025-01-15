@@ -291,7 +291,7 @@ typedef enum RISCVIns {
 
   RISCVI_FCVT_S_W = 0xd0000053,
   RISCVI_FCVT_S_WU = 0xd0100053,
-  RISCVI_FMV_W_X = 0xf0000033,
+  RISCVI_FMV_W_X = 0xf0000053,
 
   RISCVI_FMV_S = 0x20000053,
   RISCVI_FNEG_S = 0x20001053,
@@ -424,6 +424,36 @@ typedef enum RISCVIns {
   RISCVI_CZERO_EQZ = 0x0e005033,
   RISCVI_CZERO_NEZ = 0x0e007033,
 
+  /* --- Zfa --- */
+  RISCVI_FLI_S = 0xf0100053,
+  RISCVI_FMINM_S = 0x28002053,
+  RISCVI_FMAXM_S = 0x28003053,
+  RISCVI_FROUND_S = 0x40400053,
+  RISCVI_FROUNDNX_S = 0x40500053,
+  RISCVI_FCVTMOD_W_D = 0xc2801053,
+  RISCVI_FLEQ_S = 0xa0004053,
+  RISCVI_FLTQ_S = 0xa0005053,
+  RISCVI_FLI_D = 0xf2100053,
+  RISCVI_FMINM_D = 0x2a002053,
+  RISCVI_FMAXM_D = 0x2a003053,
+  RISCVI_FROUND_D = 0x42400053,
+  RISCVI_FROUNDNX_D = 0x42500053,
+  RISCVI_FLEQ_D = 0xa2004053,
+  RISCVI_FLTQ_D = 0xa2005053,
+
+  RISCVI_FROUND_S_RTZ = 0x40401053,
+  RISCVI_FROUND_S_RDN = 0x40402053,
+  RISCVI_FROUND_S_RUP = 0x40403053,
+  RISCVI_FROUNDNX_S_RTZ = 0x40501053,
+  RISCVI_FROUNDNX_S_RDN = 0x40502053,
+  RISCVI_FROUNDNX_S_RUP = 0x40503053,
+  RISCVI_FROUND_D_RTZ = 0x42401053,
+  RISCVI_FROUND_D_RDN = 0x42402053,
+  RISCVI_FROUND_D_RUP = 0x42403053,
+  RISCVI_FROUNDNX_D_RTZ = 0x42501053,
+  RISCVI_FROUNDNX_D_RDN = 0x42502053,
+  RISCVI_FROUNDNX_D_RUP = 0x42503053,
+
   /* TBD: RVV?, RVP?, RVJ? */
 
   /* --- XThead* --- */
@@ -473,5 +503,40 @@ typedef enum RISCVRM {
   RISCVRM_RMM = 4,
   RISCVRM_DYN = 7,
 } RISCVRM;
+
+static const uint16_t riscv_fli_map_hi16[32] = {
+  0xbff0u, // -1
+  0x0010u, // min
+  0x3ef0u, // 2^-16
+  0x3f00u, // 2^-15
+  0x3f70u, // 2^-8
+  0x3f80u, // 2^-7
+  0x3fb0u, // 2^-4
+  0x3fc0u, // 2^-3, 0.125
+  0x3fd0u, // 2^-2, 0.25
+  0x3fd4u, // 0.3125
+  0x3fd8u, // 0.375
+  0x3fdcu, // 0.4375
+  0x3fe0u, // 0.5
+  0x3fe4u, // 0.625
+  0x3fe8u, // 0.75
+  0x3fecu, // 0.875
+  0x3ff0u, // 1
+  0x3ff4u, // 1.25
+  0x3ff8u, // 1.5
+  0x3ffcu, // 1.75
+  0x4000u, // 2
+  0x4004u, // 2.5
+  0x4008u, // 3
+  0x4010u, // 4
+  0x4020u, // 8
+  0x4030u, // 16
+  0x4060u, // 128
+  0x4070u, // 256
+  0x40e0u, // 2^15, 32768
+  0x40f0u, // 2^16, 65536
+  0x7ff0u, // inf
+  0x7ff8u, // canonical nan
+};
 
 #endif

@@ -693,6 +693,18 @@ static int riscv_zicond()
 #endif
 }
 
+static int riscv_zfa()
+{
+#if defined(__riscv_zfa)
+  /* Don't bother checking for Zfa -- would crash before getting here. */
+  return 1;
+#elif LJ_TARGET_LINUX
+  return (hwprobe_ret == 0 && ((*hwprobe_ext) & RISCV_HWPROBE_EXT_ZFA)) ? 1 : 0;
+#else
+  return 0;
+#endif
+}
+
 static int riscv_xthead()
 {
 /*
@@ -793,6 +805,7 @@ static uint32_t jit_cpudetect(void)
   flags |= riscv_probe(riscv_zba, JIT_F_RVZba);
   flags |= riscv_probe(riscv_zbb, JIT_F_RVZbb);
   flags |= riscv_probe(riscv_zicond, JIT_F_RVZicond);
+  flags |= riscv_probe(riscv_zfa, JIT_F_RVZfa);
   flags |= riscv_probe(riscv_xthead, JIT_F_RVXThead);
 
 #endif
