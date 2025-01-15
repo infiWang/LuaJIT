@@ -34,10 +34,10 @@ Please report bugs to [Issues](https://github.com/ruyisdk/LuaJIT/issues).
 
 ## Copyright
 
-LuaJIT is Copyright (C) 2005-2023 Mike Pall.
+LuaJIT is Copyright (C) 2005-2025 Mike Pall.
 LuaJIT is free software, released under the MIT license.
 See full Copyright Notice in the COPYRIGHT file or in luajit.h.
 
-LJRV is Copyright (C) 2022-2024 PLCT Lab, ISCAS. Contributed by gns.
+LJRV is Copyright (C) 2022-2025 PLCT Lab, ISCAS. Contributed by gns.
 LJRV is free software, released under the MIT license.
 LJRV is part of RuyiSDK.

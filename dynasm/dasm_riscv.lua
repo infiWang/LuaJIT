@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------
 -- DynASM RISC-V module.
 --
--- Copyright (C) 2005-2023 Mike Pall. All rights reserved.
+-- Copyright (C) 2005-2025 Mike Pall. All rights reserved.
 -- See dynasm.lua for full copyright notice.
 --
 -- Contributed by gns from PLCT Lab, ISCAS.
