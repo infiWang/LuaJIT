@@ -401,17 +401,6 @@ static void asm_callx(ASMState *as, IRIns *ir)
   asm_gencall(as, &ci, args);
 }
 
-static void asm_callround(ASMState *as, IRIns *ir, IRCallID id)
-{
-  /* The modified regs must match with the *.dasc implementation. */
-  RegSet drop = RID2RSET(RID_X6)|RID2RSET(RID_F10)|RID2RSET(RID_F14);
-  if (ra_hasreg(ir->r)) rset_clear(drop, ir->r);
-  ra_evictset(as, drop);
-  ra_destreg(as, ir, RID_FPRET);
-  emit_call(as, (void *)lj_ir_callinfo[id].func, 0);
-  ra_leftov(as, REGARG_FIRSTFPR, ir->op1);
-}
-
 /* -- Returns ------------------------------------------------------------- */
 
 /* Return to lower frame. Guard that it goes to the right spot. */
@@ -1242,6 +1231,30 @@ static void asm_fpunary(ASMState *as, IRIns *ir, RISCVIns riscvi)
   }
 }
 
+static void asm_fpround(ASMState *as, IRIns *ir, RISCVIns riscvi)
+{
+  Reg dest = ra_dest(as, ir, RSET_FPR);
+  Reg left = ra_hintalloc(as, ir->op1, dest, RSET_FPR);
+  MCLabel l_end = emit_label(as);
+
+  if (dest != left) {
+    emit_ds1s2(as, RISCVI_FSGNJ_D, dest, dest, left);
+    emit_ds(as, RISCVI_FCVT_D_L, dest, RID_TMP);
+  } else {
+    Reg ftmp = ra_scratch(as, rset_exclude(RSET_FPR, dest));
+    emit_ds1s2(as, RISCVI_FSGNJ_D, dest, ftmp, left);
+    emit_ds(as, RISCVI_FCVT_D_L, ftmp, RID_TMP);
+  }
+  emit_ds(as, riscvi, RID_TMP, left);
+  emit_branch(as, RISCVI_BLT, RID_ZERO, RID_TMP, l_end, 0);
+  emit_dsi(as, RISCVI_ADDI, RID_TMP, RID_TMP, -1075);
+  emit_dsi(as, RISCVI_ANDI, RID_TMP, RID_TMP, 0x7ff);
+  emit_dsi(as, RISCVI_SRLI, RID_TMP, RID_TMP, 52);
+  if (dest != left) 
+    emit_ds1s2(as, RISCVI_FMV_D, dest, left, left);
+  emit_ds(as, RISCVI_FMV_X_D, RID_TMP, left);
+}
+
 static void asm_fpmath(ASMState *as, IRIns *ir)
 {
   IRFPMathOp fpm = (IRFPMathOp)ir->op2;
@@ -1249,7 +1262,11 @@ static void asm_fpmath(ASMState *as, IRIns *ir)
     if (as->flags & JIT_F_RVZfa) {
       asm_fpunary(as, ir, fpm == IRFPM_FLOOR ? RISCVI_FROUND_D_RDN :
         fpm == IRFPM_CEIL ? RISCVI_FROUND_D_RUP : RISCVI_FROUND_D_RTZ);
-    } else asm_callround(as, ir, IRCALL_lj_vm_floor + fpm);
+    } else {
+      asm_fpround(as, ir, fpm == IRFPM_FLOOR ? RISCVI_FCVT_L_D | RISCVF_RM(RISCVRM_RDN) :
+        fpm == IRFPM_CEIL ? RISCVI_FCVT_L_D | RISCVF_RM(RISCVRM_RUP) :
+          RISCVI_FCVT_L_D | RISCVF_RM(RISCVRM_RTZ));
+    }
   else if (fpm == IRFPM_SQRT)
     asm_fpunary(as, ir, RISCVI_FSQRT_D);
   else
