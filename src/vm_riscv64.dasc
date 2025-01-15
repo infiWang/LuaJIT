@@ -1669,16 +1669,14 @@ static void build_subroutines(BuildCtx *ctx)
   |  bxeqz NARGS8:RC, ->fff_fallback
   |   fmv.d.x FARG1, CARG1
   |    bxeq TMP0, TISNUM, ->fff_restv
-  |  lui TMP1, 0x43300		// Hiword of 2^52 (double).
+  |   srli TMP1, CARG1, 52		// Extract exponent (and sign).
   |    bxgeu TMP0, TISNUM, ->fff_fallback
-  |  slli TMP1, TMP1, 32
-  |  fmv.d.x FTMP1, TMP1
-  |  fabs.d FTMP0, FARG1
-  |  flt.d TMP2, FTMP0, FTMP1
-  |  bxeqz TMP2, ->fff_resn
+  |  andi TMP1, TMP1, 0x7ff		// Extract exponent.
+  |  slti TMP2, TMP1, 1023 + 52 + 1	// 1023: Bias, 52: Max fraction
+  |  bxeqz TMP2, ->fff_resn		// Less than 2^52 / Not NaN?
   |  fcvt.l.d TMP3, FARG1, rm
-  |  fcvt.d.l FTMP2, TMP3
-  |  fsgnj.d FRET1, FTMP2, FARG1
+  |  fcvt.d.l FTMP1, TMP3
+  |  fsgnj.d FRET1, FTMP1, FARG1
   |  j ->fff_resn
   |.endmacro
   |
@@ -2489,14 +2487,13 @@ static void build_subroutines(BuildCtx *ctx)
   |
   |
   |// Hard-float round to integer.
-  |// Modifies TMP0, FARG1, FARG4, FARG5
+  |// Modifies TMP0, FARG1, FARG5
   |.macro vm_round, rm
-  |  lui TMP0, 0x43300		// Hiword of 2^52 (double).
-  |  slli TMP0, TMP0, 32
-  |  fmv.d.x FARG5, TMP0
-  |   fabs.d FARG4, FARG1
-  |  flt.d TMP0, FARG4, FARG5
-  |  beqz TMP0, >1
+  |  fmv.x.d TMP0, FARG1
+  |  srli TMP0, TMP0, 52	// Extract exponent (and sign).
+  |  andi TMP0, TMP0, 0x7ff	// Extract exponent.
+  |  addi TMP0, TMP0, -1075
+  |  bgtz TMP0, >1		// Less than 2^52 / Not NaN?
   |  fcvt.l.d TMP0, FARG1, rm
   |  fcvt.d.l FARG5, TMP0
   |  fsgnj.d FRET1, FARG5, FARG1

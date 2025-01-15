@@ -404,8 +404,7 @@ static void asm_callx(ASMState *as, IRIns *ir)
 static void asm_callround(ASMState *as, IRIns *ir, IRCallID id)
 {
   /* The modified regs must match with the *.dasc implementation. */
-  RegSet drop = RID2RSET(RID_X6)|
-                RID2RSET(RID_F10)|RID2RSET(RID_F13)|RID2RSET(RID_F14);
+  RegSet drop = RID2RSET(RID_X6)|RID2RSET(RID_F10)|RID2RSET(RID_F14);
   if (ra_hasreg(ir->r)) rset_clear(drop, ir->r);
   ra_evictset(as, drop);
   ra_destreg(as, ir, RID_FPRET);
