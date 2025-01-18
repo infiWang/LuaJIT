@@ -388,8 +388,9 @@ static void emit_loadk64(ASMState *as, Reg r, IRIns *ir)
     if (as->flags & JIT_F_RVZfa) {
       uint8_t sign = (*k >> 63) & 1;
       uint16_t k_hi16 = (*k >> 48) & 0xffff;
+      uint64_t k_lo48 = *k & 0xffffffffffff;
       uint16_t mk_hi16 = k_hi16 & 0x7fff;
-      if (k_hi16) {
+      if (!k_lo48) {
   if (riscv_fli_map_hi16[0] == k_hi16) {
     emit_ds(as, RISCVI_FLI_D, r, 0);
     return;
