@@ -707,12 +707,20 @@ static int riscv_zfa()
 
 static int riscv_xthead()
 {
+#if (defined(__riscv_xtheadba) \
+  && defined(__riscv_xtheadbb) \
+  && defined(__riscv_xtheadcondmov) \
+  && defined(__riscv_xtheadmac))
+  /* Don't bother checking for XThead -- would crash before getting here. */
+  return 1;
+#else
 /*
 ** Hardcoded as there's no easy way of detection:
 ** - SIGILL have some trouble with libluajit as we speak
 ** - Checking mvendorid looks good, but might not be reliable.
 */
   return 0;
+#endif
 }
 
 static uint32_t riscv_probe(int (*func)(void), uint32_t flag)
