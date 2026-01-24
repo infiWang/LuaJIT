@@ -1,6 +1,6 @@
 /*
 ** Bytecode writer.
-** Copyright (C) 2005-2023 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2005-2026 Mike Pall. See Copyright Notice in luajit.h
 */
 
 #define lj_bcwrite_c
@@ -59,9 +59,9 @@ static void bcwrite_ktabk(BCWriteCtx *ctx, cTValue *o, int narrow)
     p = lj_strfmt_wuleb128(p, intV(o));
   } else if (tvisnum(o)) {
     if (!LJ_DUALNUM && narrow) {  /* Narrow number constants to integers. */
-      lua_Number num = numV(o);
-      int32_t k = lj_num2int(num);
-      if (num == (lua_Number)k) {  /* -0 is never a constant. */
+      int64_t i64;
+      int32_t k;
+      if (lj_num2int_check(numV(o), i64, k)) {  /* -0 is never a constant. */
 	*p++ = BCDUMP_KTAB_INT;
 	p = lj_strfmt_wuleb128(p, k);
 	ctx->sb.w = p;
@@ -71,6 +71,8 @@ static void bcwrite_ktabk(BCWriteCtx *ctx, cTValue *o, int narrow)
     *p++ = BCDUMP_KTAB_NUM;
     p = lj_strfmt_wuleb128(p, o->u32.lo);
     p = lj_strfmt_wuleb128(p, o->u32.hi);
+  } else if (tvistab(o)) { /* Write the nil value marker as a nil. */
+    *p++ = BCDUMP_KTAB_NIL;
   } else {
     lj_assertBCW(tvispri(o), "unhandled type %d", itype(o));
     *p++ = BCDUMP_KTAB_NIL+~itype(o);
@@ -133,7 +135,7 @@ static void bcwrite_ktab_sorted_hash(BCWriteCtx *ctx, Node *node, MSize nhash)
   TValue **heap = ctx->heap;
   MSize i = nhash;
   for (;; node--) {  /* Build heap. */
-    if (!tvisnil(&node->key)) {
+    if (!tvisnil(&node->val)) {
       bcwrite_ktabk_heap_insert(heap, --i, nhash, &node->key);
       if (i == 0) break;
     }
@@ -163,7 +165,7 @@ static void bcwrite_ktab(BCWriteCtx *ctx, char *p, const GCtab *t)
     MSize i, hmask = t->hmask;
     Node *node = noderef(t->node);
     for (i = 0; i <= hmask; i++)
-      nhash += !tvisnil(&node[i].key);
+      nhash += !tvisnil(&node[i].val);
   }
   /* Write number of array slots and hash slots. */
   p = lj_strfmt_wuleb128(p, narray);
@@ -184,7 +186,7 @@ static void bcwrite_ktab(BCWriteCtx *ctx, char *p, const GCtab *t)
     } else {
       MSize i = nhash;
       for (;; node--)
-	if (!tvisnil(&node->key)) {
+	if (!tvisnil(&node->val)) {
 	  bcwrite_ktabk(ctx, &node->key, 0);
 	  bcwrite_ktabk(ctx, &node->val, 1);
 	  if (--i == 0) break;
@@ -268,9 +270,8 @@ static void bcwrite_knum(BCWriteCtx *ctx, GCproto *pt)
       /* Write a 33 bit ULEB128 for the int (lsb=0) or loword (lsb=1). */
       if (!LJ_DUALNUM && o->u32.hi != LJ_KEYINDEX) {
 	/* Narrow number constants to integers. */
-	lua_Number num = numV(o);
-	k = lj_num2int(num);
-	if (num == (lua_Number)k) {  /* -0 is never a constant. */
+	int64_t i64;
+	if (lj_num2int_check(numV(o), i64, k)) {  /* -0 is never a constant. */
 	save_int:
 	  p = lj_strfmt_wuleb128(p, 2*(uint32_t)k | ((uint32_t)k&0x80000000u));
 	  if (k < 0)

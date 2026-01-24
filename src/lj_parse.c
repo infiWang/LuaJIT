@@ -1,6 +1,6 @@
 /*
 ** Lua parser (source code -> bytecode).
-** Copyright (C) 2005-2023 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2005-2026 Mike Pall. See Copyright Notice in luajit.h
 **
 ** Major portions taken verbatim or adapted from the Lua interpreter.
 ** Copyright (C) 1994-2008 Lua.org, PUC-Rio. See Copyright Notice in lua.h
@@ -522,9 +522,9 @@ static void expr_toreg_nobranch(FuncState *fs, ExpDesc *e, BCReg reg)
       ins = BCINS_AD(BC_KSHORT, reg, (BCReg)(uint16_t)intV(tv));
     else
 #else
-    lua_Number n = expr_numberV(e);
-    int32_t k = lj_num2int(n);
-    if (checki16(k) && n == (lua_Number)k)
+    int64_t i64;
+    int32_t k;
+    if (lj_num2int_cond(expr_numberV(e), i64, k, checki16((int32_t)i64)))
       ins = BCINS_AD(BC_KSHORT, reg, (BCReg)(uint16_t)k);
     else
 #endif
@@ -782,8 +782,9 @@ static int foldarith(BinOpr opr, ExpDesc *e1, ExpDesc *e2)
   setnumV(&o, n);
   if (tvisnan(&o) || tvismzero(&o)) return 0;  /* Avoid NaN and -0 as consts. */
   if (LJ_DUALNUM) {
-    int32_t k = lj_num2int(n);
-    if ((lua_Number)k == n) {
+    int64_t i64;
+    int32_t k;
+    if (lj_num2int_check(n, i64, k)) {
       setintV(&e1->u.nval, k);
       return 1;
     }
@@ -1386,10 +1387,10 @@ static void fs_fixup_k(FuncState *fs, GCproto *pt, void *kptr)
       if (tvisnum(&n->key)) {
 	TValue *tv = &((TValue *)kptr)[kidx];
 	if (LJ_DUALNUM) {
-	  lua_Number nn = numV(&n->key);
-	  int32_t k = lj_num2int(nn);
+	  int64_t i64;
+	  int32_t k;
 	  lj_assertFS(!tvismzero(&n->key), "unexpected -0 key");
-	  if ((lua_Number)k == nn)
+	  if (lj_num2int_check(numV(&n->key), i64, k))
 	    setintV(tv, k);
 	  else
 	    *tv = n->key;
@@ -1517,23 +1518,11 @@ static void fs_fixup_var(LexState *ls, GCproto *pt, uint8_t *p, size_t ofsvar)
 
 #endif
 
-/* Check if bytecode op returns. */
-static int bcopisret(BCOp op)
-{
-  switch (op) {
-  case BC_CALLMT: case BC_CALLT:
-  case BC_RETM: case BC_RET: case BC_RET0: case BC_RET1:
-    return 1;
-  default:
-    return 0;
-  }
-}
-
 /* Fixup return instruction for prototype. */
 static void fs_fixup_ret(FuncState *fs)
 {
   BCPos lastpc = fs->pc;
-  if (lastpc <= fs->lasttarget || !bcopisret(bc_op(fs->bcbase[lastpc-1].ins))) {
+  if (lastpc <= fs->lasttarget || !bc_isret_or_tail(bc_op(fs->bcbase[lastpc-1].ins))) {
     if ((fs->bl->flags & FSCOPE_UPVAL))
       bcemit_AJ(fs, BC_UCLO, 0, 0);
     bcemit_AD(fs, BC_RET0, 0, 1);  /* Need final return. */
@@ -1605,8 +1594,8 @@ static GCproto *fs_finish(LexState *ls, BCLine line)
   fs_fixup_line(fs, pt, (void *)((char *)pt + ofsli), numline);
   fs_fixup_var(ls, pt, (uint8_t *)((char *)pt + ofsdbg), ofsvar);
 
-  lj_vmevent_send(L, BC,
-    setprotoV(L, L->top++, pt);
+  lj_vmevent_send(G(L), BC,
+    setprotoV(V, V->top++, pt);
   );
 
   L->top--;  /* Pop table of constants. */
@@ -1668,9 +1657,9 @@ static void expr_index(FuncState *fs, ExpDesc *t, ExpDesc *e)
       }
     }
 #else
-    lua_Number n = expr_numberV(e);
-    int32_t k = lj_num2int(n);
-    if (checku8(k) && n == (lua_Number)k) {
+    int64_t i64;
+    int32_t k;
+    if (lj_num2int_cond(expr_numberV(e), i64, k, checku8((int32_t)i64))) {
       t->u.s.aux = BCMAX_C+1+(uint32_t)k;  /* 256..511: const byte key */
       return;
     }
@@ -1725,7 +1714,7 @@ static void expr_table(LexState *ls, ExpDesc *e)
   FuncState *fs = ls->fs;
   BCLine line = ls->linenumber;
   GCtab *t = NULL;
-  int vcall = 0, needarr = 0, fixt = 0;
+  int vcall = 0, needarr = 0;
   uint32_t narr = 1;  /* First array index. */
   uint32_t nhash = 0;  /* Number of hash entries. */
   BCReg freg = fs->freereg;
@@ -1769,9 +1758,10 @@ static void expr_table(LexState *ls, ExpDesc *e)
       lj_gc_anybarriert(fs->L, t);
       if (expr_isk_nojump(&val)) {  /* Add const key/value to template table. */
 	expr_kvalue(fs, v, &val);
-      } else {  /* Otherwise create dummy string key (avoids lj_tab_newkey). */
-	settabV(fs->L, v, t);  /* Preserve key with table itself as value. */
-	fixt = 1;   /* Fix this later, after all resizes. */
+	/* Mark nil value with table value itself to preserve the key. */
+	if (key.k == VKSTR && tvisnil(v)) settabV(fs->L, v, t);
+      } else {  /* Preserve the key for the following non-const store.  */
+	settabV(fs->L, v, t);
 	goto nonconst;
       }
     } else {
@@ -1813,17 +1803,6 @@ static void expr_table(LexState *ls, ExpDesc *e)
   } else {
     if (needarr && t->asize < narr)
       lj_tab_reasize(fs->L, t, narr-1);
-    if (fixt) {  /* Fix value for dummy keys in template table. */
-      Node *node = noderef(t->node);
-      uint32_t i, hmask = t->hmask;
-      for (i = 0; i <= hmask; i++) {
-	Node *n = &node[i];
-	if (tvistab(&n->val)) {
-	  lj_assertFS(tabV(&n->val) == t, "bad dummy key in template table");
-	  setnilV(&n->val);  /* Turn value into nil. */
-	}
-      }
-    }
     lj_gc_check(fs->L);
   }
 }
