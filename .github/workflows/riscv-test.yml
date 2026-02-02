@@ -50,4 +50,8 @@ jobs:
       - name: Run LuaJIT test suite with ${{ matrix.cpu }}
         run: |
           cd test-suite
-          qemu-riscv64 -cpu ${{ matrix.cpu }} ../src/luajit test.lua
+          set -e
+          qemu-riscv64 -cpu ${{ matrix.cpu }} ../src/luajit test.lua || {
+            echo "Tests failed with CPU: ${{ matrix.cpu }}"
+            exit 1
+          }
