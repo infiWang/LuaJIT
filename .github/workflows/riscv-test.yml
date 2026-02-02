@@ -23,7 +23,6 @@ jobs:
           sudo apt-get install -y \
             gcc-riscv64-linux-gnu \
             g++-riscv64-linux-gnu \
-            qemu-user \
             qemu-user-static \
             build-essential \
             make
@@ -50,7 +49,11 @@ jobs:
       - name: Run LuaJIT test suite with ${{ matrix.cpu }}
         run: |
           cd test-suite
-          qemu-riscv64 -cpu ${{ matrix.cpu }} ../src/luajit test.lua || {
+          echo "Running tests with CPU: ${{ matrix.cpu }}"
+          set -o pipefail
+          qemu-riscv64 -cpu ${{ matrix.cpu }} ../src/luajit test.lua 2>&1 | tee test-output.log || {
             echo "Tests failed with CPU: ${{ matrix.cpu }}"
+            echo "Last 50 lines of test output:"
+            tail -n 50 test-output.log
             exit 1
           }
