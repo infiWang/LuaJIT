@@ -36,6 +36,8 @@ jobs:
             TARGET_CFLAGS="-march=rv64gc" \
             TARGET_LDFLAGS="-static" \
             BUILDMODE=static
+          # Note: Building with baseline rv64gc ISA for maximum compatibility.
+          # CPU-specific features are tested via QEMU's -cpu flag at runtime.
       
       - name: Verify LuaJIT binary
         run: |
