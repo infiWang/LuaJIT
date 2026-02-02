@@ -58,16 +58,4 @@ jobs:
         run: |
           cd test-suite
           echo "Running tests with CPU: ${{ matrix.cpu }}"
-          set -o pipefail
-          qemu-riscv64-static -cpu ${{ matrix.cpu }} ../src/luajit test/test.lua 2>&1 | tee test-output.log || {
-            echo "Tests failed with CPU: ${{ matrix.cpu }}"
-            exit 1
-          }
-      
-      - name: Upload test output on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-output-${{ matrix.cpu }}
-          path: test-suite/test-output.log
-          retention-days: 7
+          qemu-riscv64-static -cpu ${{ matrix.cpu }} ../src/luajit test/test.lua
