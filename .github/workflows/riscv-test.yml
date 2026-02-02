@@ -30,11 +30,13 @@ jobs:
       
       - name: Build LuaJIT for RISC-V
         run: |
+          make -C src clean
           make -C src \
             HOST_CC="gcc -m64" \
             CROSS=riscv64-linux-gnu- \
             TARGET_CFLAGS="-march=rv64gc" \
-            TARGET_LDFLAGS="-static"
+            TARGET_LDFLAGS="-static" \
+            BUILDMODE=static
       
       - name: Verify LuaJIT binary
         run: |
