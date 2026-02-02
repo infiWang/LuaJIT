@@ -13,10 +13,10 @@ jobs:
       contents: read
     strategy:
       matrix:
-        # Test with two RISC-V Application Profiles:
-        # - rva20u64: RVA20U64 profile (Application Profile 20 for 64-bit unprivileged)
+        # Test with two RISC-V CPU configurations:
+        # - rv64: Generic RISC-V 64-bit (equivalent to RVA20U64 profile)
         # - rva23u64: RVA23U64 profile (Application Profile 23 for 64-bit unprivileged)
-        cpu: [rva20u64, rva23u64]
+        cpu: [rv64, rva23u64]
     
     steps:
       - name: Checkout LuaJIT
@@ -27,7 +27,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             gcc-riscv64-linux-gnu \
-            g++-riscv64-linux-gnu \
             qemu-user-static \
             build-essential \
             make
@@ -58,10 +57,8 @@ jobs:
           cd test-suite
           echo "Running tests with CPU: ${{ matrix.cpu }}"
           set -o pipefail
-          qemu-riscv64 -cpu ${{ matrix.cpu }} ../src/luajit test.lua 2>&1 | tee test-output.log || {
+          qemu-riscv64 -cpu ${{ matrix.cpu }} ../src/luajit test/test.lua 2>&1 | tee test-output.log || {
             echo "Tests failed with CPU: ${{ matrix.cpu }}"
-            echo "Last 50 lines of test output:"
-            tail -n 50 test-output.log
             exit 1
           }
       
