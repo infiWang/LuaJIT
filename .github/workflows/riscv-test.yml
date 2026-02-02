@@ -57,3 +57,11 @@ jobs:
             tail -n 50 test-output.log
             exit 1
           }
+      
+      - name: Upload test output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output-${{ matrix.cpu }}
+          path: test-suite/test-output.log
+          retention-days: 7
