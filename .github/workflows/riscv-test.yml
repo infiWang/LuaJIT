@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
+        # Test with two RISC-V Application Profiles:
+        # - rva20u64: RVA20U64 profile (Application Profile 20 for 64-bit unprivileged)
+        # - rva23u64: RVA23U64 profile (Application Profile 23 for 64-bit unprivileged)
         cpu: [rva20u64, rva23u64]
     
     steps:
