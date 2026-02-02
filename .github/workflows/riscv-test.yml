@@ -1,0 +1,51 @@
+name: RISC-V Testing
+
+on:
+  push:
+    branches:
+      - riscv
+      - v2.1-riscv64
+
+jobs:
+  test-riscv:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cpu: [rva20u64, rva23u64]
+    
+    steps:
+      - name: Checkout LuaJIT
+        uses: actions/checkout@v4
+      
+      - name: Install RISC-V toolchain and QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-riscv64-linux-gnu \
+            g++-riscv64-linux-gnu \
+            qemu-user \
+            qemu-user-static \
+            build-essential \
+            make
+      
+      - name: Build LuaJIT for RISC-V
+        run: |
+          make -C src \
+            HOST_CC="gcc -m64" \
+            CROSS=riscv64-linux-gnu- \
+            TARGET_CFLAGS="-march=rv64gc" \
+            TARGET_LDFLAGS="-static"
+      
+      - name: Verify LuaJIT binary
+        run: |
+          file src/luajit
+          qemu-riscv64 -cpu ${{ matrix.cpu }} src/luajit -v
+      
+      - name: Clone LuaJIT-test-cleanup
+        run: |
+          git clone https://github.com/LuaJIT/LuaJIT-test-cleanup.git test-suite
+      
+      - name: Run LuaJIT test suite with ${{ matrix.cpu }}
+        run: |
+          cd test-suite
+          qemu-riscv64 -cpu ${{ matrix.cpu }} ../src/luajit test.lua
