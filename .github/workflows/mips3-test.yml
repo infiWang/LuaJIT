@@ -1,0 +1,56 @@
+name: MIPS3 Testing with LuaJIT-test-cleanup
+
+on:
+  push:
+    branches:
+      - mips3
+
+jobs:
+  test-mips3:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout LuaJIT repository
+        uses: actions/checkout@v4
+      
+      - name: Install MIPS toolchain and QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            crossbuild-essential-mips64el \
+            qemu-user-static
+      
+      - name: Build LuaJIT for MIPS3
+        run: |
+          cd src
+          make clean
+          make -j \
+            CROSS=mips64el-linux-gnuabi64- \
+            BUILDMODE="mixed" \
+            CCOPT="-O2 -fomit-frame-pointer" \
+            CCOPT_mips="-march=mips3" \
+            XCFLAGS="-DLUAJIT_ENABLE_LUA52COMPAT"
+
+      - name: Verify LuaJIT binary
+        run: |
+          file src/luajit
+          qemu-mips64el-static -cpu Loongson-3A1000 -L /usr/mips64el-linux-gnuabi64 \
+            src/luajit -v
+      
+      - name: Checkout LuaJIT-test-cleanup
+        uses: actions/checkout@v4
+        with:
+          repository: LuaJIT/LuaJIT-test-cleanup
+          path: test-suite
+      
+      - name: Run tests with qemu-mips64el
+        run: |
+          cd test-suite
+          # Use MIPS64R2 since libc not targeted for mips3
+          for i in {1..372} {374..379} {381..517}; do
+            qemu-mips64el-static -cpu Loongson-3A1000 -L /usr/mips64el-linux-gnuabi64 \
+              ../src/luajit test/test.lua +slow $i
+          done
