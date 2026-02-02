@@ -46,18 +46,20 @@ jobs:
       - name: Verify LuaJIT binary
         run: |
           file src/luajit
-          qemu-riscv64 -cpu ${{ matrix.cpu }} src/luajit -v
+          qemu-riscv64-static -cpu ${{ matrix.cpu }} src/luajit -v
       
       - name: Clone LuaJIT-test-cleanup
-        run: |
-          git clone https://github.com/LuaJIT/LuaJIT-test-cleanup.git test-suite
+        uses: actions/checkout@v4
+        with:
+          repository: LuaJIT/LuaJIT-test-cleanup
+          path: test-suite
       
       - name: Run LuaJIT test suite with ${{ matrix.cpu }}
         run: |
           cd test-suite
           echo "Running tests with CPU: ${{ matrix.cpu }}"
           set -o pipefail
-          qemu-riscv64 -cpu ${{ matrix.cpu }} ../src/luajit test/test.lua 2>&1 | tee test-output.log || {
+          qemu-riscv64-static -cpu ${{ matrix.cpu }} ../src/luajit test/test.lua 2>&1 | tee test-output.log || {
             echo "Tests failed with CPU: ${{ matrix.cpu }}"
             exit 1
           }
